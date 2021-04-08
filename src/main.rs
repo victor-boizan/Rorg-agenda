@@ -1,5 +1,7 @@
 use std::fs;
 
+use std::fmt;
+
 use std::fs::File;
 use std::io::prelude::*;
 
@@ -11,10 +13,67 @@ enum TimeRange{
     Month,
     Week
 }
+#[derive(Debug)]
+enum EventState{
+    TODO,
+    WIP,
+    DONE,
+    Null,
+}
+#[derive(Debug)]
+enum EventStyle{
+    Task,
+    Habit,
+    Appointment,
+    BasicEvent
+}
 
+trait Entry{
+    fn new(name: String, priority: u8) -> Self;
+}
 
+#[derive(Debug)]
+struct Task{
+    name: String,
+    state: EventState,
+    style: EventStyle,
+    priority: u8,
+    description: String,
+    logs: String,
+    notes: String
+}
+impl Entry for Task{
+    fn new(name: String, priority: u8) -> Task{
+        Task{
+            name: name,
+            state: EventState::TODO,
+            style: EventStyle::Task,
+            priority: priority,
+            description: "".to_string(),
+            logs: "".to_string(),
+            notes: "".to_string()
+        }
+    }
+}
+impl fmt::Display for Task {
+
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+
+        write!(f, "***** {:?} [#{}] {}\
+                   \n:PROPERTIES:\
+                   \n:STYLE: {:?}\
+                   \n:END:\
+                   \n:DESCRIPTION:\
+                   \n{}\
+                   \n:END:\
+                   \n:NOTES:\
+                   \n{}\
+                   \n:END:\
+                   ",
+                    self.state, self.priority, self.name, self.style, self.description, self.notes)
+    }
+}
 fn main() -> std::io::Result<()> {
-
     dir_init()
 }
 
@@ -81,7 +140,6 @@ fn dir_init() -> std::io::Result<()> {
 
     Ok(())
 }
-
 fn file_generator(time: TimeRange,year: i32,date: u32) -> String {
 
     let file_title: String;
@@ -144,9 +202,9 @@ fn file_generator(time: TimeRange,year: i32,date: u32) -> String {
         }
     }
     let generic_content = "* ToDos\n\n\
-                            \t** In Progress\n\n\
-                            \t** To be done\n\n\
-                            \t** Done\n\n\n\
+                            ** In Progress\n\n\
+                            ** To be done\n\n\
+                            ** Done\n\n\n\
                             * Notes\n\n\
                             * Records\n";
 
