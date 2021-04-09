@@ -17,6 +17,7 @@ enum TimeRange{
 enum EventState{
     TODO,
     WIP,
+    REPORT,
     DONE,
     Null,
 }
@@ -28,12 +29,8 @@ enum EventStyle{
     BasicEvent
 }
 
-trait Entry{
-    fn new(name: String, priority: u8) -> Self;
-}
-
 #[derive(Debug)]
-struct Task{
+struct Task {
     name: String,
     state: EventState,
     style: EventStyle,
@@ -42,7 +39,7 @@ struct Task{
     logs: String,
     notes: String
 }
-impl Entry for Task{
+impl Task{
     fn new(name: String, priority: u8) -> Task{
         Task{
             name: name,
@@ -73,8 +70,128 @@ impl fmt::Display for Task {
                     self.state, self.priority, self.name, self.style, self.description, self.notes)
     }
 }
+
+#[derive(Debug)]
+struct Habit {
+    name: String,
+    state: EventState,
+    style: EventStyle,
+    description: String,
+    logs: String,
+    notes: String
+}
+impl Habit{
+    fn new(name: String) -> Habit{
+        Habit{
+            name: name,
+            state: EventState::TODO,
+            style: EventStyle::Habit,
+            description: "".to_string(),
+            logs: "".to_string(),
+            notes: "".to_string()
+        }
+    }
+}
+impl fmt::Display for Habit {
+
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+
+        write!(f, "***** {:?} {}\
+                   \n:PROPERTIES:\
+                   \n:STYLE: {:?}\
+                   \n:END:\
+                   \n:DESCRIPTION:\
+                   \n{}\
+                   \n:END:\
+                   \n:NOTES:\
+                   \n{}\
+                   \n:END:\
+                   ",
+                    self.state, self.name, self.style, self.description, self.notes)
+    }
+}
+
+#[derive(Debug)]
+struct Appointment {
+    name: String,
+    state: EventState,
+    style: EventStyle,
+    description: String,
+    logs: String,
+    notes: String
+}
+impl Appointment{
+    fn new(name: String) -> Appointment{
+        Appointment{
+            name: name,
+            state: EventState::TODO,
+            style: EventStyle::Appointment,
+            description: "".to_string(),
+            logs: "".to_string(),
+            notes: "".to_string()
+        }
+    }
+}
+impl fmt::Display for Appointment {
+
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+
+        write!(f, "***** {:?} {}\
+                   \n:PROPERTIES:\
+                   \n:STYLE: {:?}\
+                   \n:END:\
+                   \n:DESCRIPTION:\
+                   \n{}\
+                   \n:END:\
+                   \n:NOTES:\
+                   \n{}\
+                   \n:END:\
+                   ",
+                    self.state, self.name, self.style, self.description, self.notes)
+    }
+}
+
+#[derive(Debug)]
+struct BasicEvent {
+    name: String,
+    style: EventStyle,
+    description: String,
+    notes: String
+}
+impl BasicEvent{
+    fn new(name: String) -> BasicEvent{
+        BasicEvent{
+            name: name,
+            style: EventStyle::Task,
+            description: "".to_string(),
+            notes: "".to_string()
+        }
+    }
+}
+impl fmt::Display for BasicEvent {
+
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+
+        write!(f, "***** {}\
+                   \n:PROPERTIES:\
+                   \n:STYLE: {:?}\
+                   \n:END:\
+                   \n:DESCRIPTION:\
+                   \n{}\
+                   \n:END:\
+                   \n:NOTES:\
+                   \n{}\
+                   \n:END:\
+                   ",
+                    self.name, self.style, self.description, self.notes)
+    }
+}
+
 fn main() -> std::io::Result<()> {
-    dir_init()
+
+    test_events();
+
+    Ok(())
 }
 
 fn dir_init() -> std::io::Result<()> {
@@ -209,5 +326,16 @@ fn file_generator(time: TimeRange,year: i32,date: u32) -> String {
                             * Records\n";
 
     format!("{}{}{}",file_title,begin_content,generic_content)
+
+}
+
+/* Test functions */
+fn test_events(){
+    let a_task: Task = Task::new("Task exemple".to_string(), 0);
+    let an_habit: Habit = Habit::new("habit exemple".to_string());
+    let an_appointment: Appointment = Appointment::new("Appointment exemple".to_string());
+    let an_basic_event: BasicEvent = BasicEvent::new("event exemple".to_string());
+
+    println!("{}\n{}\n{}\n{}",a_task,an_habit,an_appointment,an_basic_event);
 
 }
