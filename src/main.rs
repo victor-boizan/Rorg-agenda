@@ -71,6 +71,25 @@ impl Task{
             notes: "".to_string()
         }
     }
+    fn event_extractor(path: &str) -> Vec<Task>{
+
+        let mut file = File::open(path).expect("OPEN error in function file_extractor");
+        let mut file_content = String::new();
+        file.read_to_string(&mut file_content).expect("READ error in function file_extractor");
+        drop(file);
+
+        //this regex match all events types
+        let event_regex = Regex::new(r"(?m)^\**.*\n:PROPERTIES:\n(:[A-Z]*: .*\n)*:END:\n:DESCRIPTION:\n(^[^:]*\n)*:END:\n:NOTES:\n(^[^:]*\n)*:END:").unwrap();
+        let mut task = Vec::new();
+        for event in event_regex.captures_iter(&file_content) {
+            task.push(Task::from_str(event.get(0).unwrap().as_str()).unwrap())
+            //let habit = Habit::from_str(event.get(0).unwrap().as_str()).unwrap();
+            //println!("+-----------an{}habit-----------+\n\n{}\n+----------------------------+",i,habit);
+        }
+        return task;
+    }
+
+
 }
 impl fmt::Display for Task {
 
@@ -130,6 +149,24 @@ impl Habit{
             notes: "".to_string()
         }
     }
+    fn event_extractor(path: &str) -> Vec<Habit>{
+
+        let mut file = File::open(path).expect("OPEN error in function file_extractor");
+        let mut file_content = String::new();
+        file.read_to_string(&mut file_content).expect("READ error in function file_extractor");
+        drop(file);
+
+        //this regex match all events types
+        let event_regex = Regex::new(r"(?m)^\**.*\n:PROPERTIES:\n(:[A-Z]*: .*\n)*:END:\n:DESCRIPTION:\n(^[^:]*\n)*:END:\n:NOTES:\n(^[^:]*\n)*:END:").unwrap();
+        let mut habits = Vec::new();
+        for event in event_regex.captures_iter(&file_content) {
+            habits.push(Habit::from_str(event.get(0).unwrap().as_str()).unwrap())
+            //let habit = Habit::from_str(event.get(0).unwrap().as_str()).unwrap();
+            //println!("+-----------an{}habit-----------+\n\n{}\n+----------------------------+",i,habit);
+        }
+        return habits;
+    }
+
 }
 impl fmt::Display for Habit {
 
@@ -188,6 +225,23 @@ impl Appointment{
             notes: "".to_string()
         }
     }
+    fn event_extractor(path: &str) -> Vec<Appointment>{
+
+        let mut file = File::open(path).expect("OPEN error in function file_extractor");
+        let mut file_content = String::new();
+        file.read_to_string(&mut file_content).expect("READ error in function file_extractor");
+        drop(file);
+
+        //this regex match all events types
+        let event_regex = Regex::new(r"(?m)^\**.*\n:PROPERTIES:\n(:[A-Z]*: .*\n)*:END:\n:DESCRIPTION:\n(^[^:]*\n)*:END:\n:NOTES:\n(^[^:]*\n)*:END:").unwrap();
+        let mut appointments = Vec::new();
+        for event in event_regex.captures_iter(&file_content) {
+            appointments.push(Appointment::from_str(event.get(0).unwrap().as_str()).unwrap())
+            //let habit = Habit::from_str(event.get(0).unwrap().as_str()).unwrap();
+            //println!("+-----------an{}habit-----------+\n\n{}\n+----------------------------+",i,habit);
+        }
+        return appointments;
+    }
 }
 impl fmt::Display for Appointment {
 
@@ -242,6 +296,23 @@ impl BasicEvent{
             notes: "".to_string()
         }
     }
+    fn event_extractor(path: &str) -> Vec<BasicEvent>{
+
+        let mut file = File::open(path).expect("OPEN error in function file_extractor");
+        let mut file_content = String::new();
+        file.read_to_string(&mut file_content).expect("READ error in function file_extractor");
+        drop(file);
+
+        //this regex match all events types
+        let event_regex = Regex::new(r"(?m)^\**.*\n:PROPERTIES:\n(:[A-Z]*: .*\n)*:END:\n:DESCRIPTION:\n(^[^:]*\n)*:END:\n:NOTES:\n(^[^:]*\n)*:END:").unwrap();
+        let mut basic_events = Vec::new();
+        for event in event_regex.captures_iter(&file_content) {
+            basic_events.push(BasicEvent::from_str(event.get(0).unwrap().as_str()).unwrap())
+            //let habit = Habit::from_str(event.get(0).unwrap().as_str()).unwrap();
+            //println!("+-----------an{}habit-----------+\n\n{}\n+----------------------------+",i,habit);
+        }
+        return basic_events;
+    }
 }
 impl fmt::Display for BasicEvent {
 
@@ -280,8 +351,7 @@ impl FromStr for BasicEvent {
 
 fn main() -> std::io::Result<()> {
 
-    test_things();
-    Ok(())
+    test_things()
 }
 
 fn dir_init() -> std::io::Result<()> {
@@ -418,48 +488,57 @@ fn file_generator(time: TimeRange,year: i32,date: u32) -> String {
     format!("{}{}{}",file_title,begin_content,generic_content)
 
 }
+/*fn event_extractor(path: &str) {
 
+    let mut file = File::open(path).expect("OPEN error in function file_extractor");
+    let mut file_content = String::new();
+    file.read_to_string(&mut file_content).expect("READ error in function file_extractor");
+    drop(file);
+
+    //this regex match all events types
+    let event_regex = Regex::new(r"(?m)^\**.*\n:PROPERTIES:\n(:[A-Z]*: .*\n)*:END:\n:DESCRIPTION:\n(^[^:]*\n)*:END:\n:NOTES:\n(^[^:]*\n)*:END:").unwrap();
+    match style {
+        EventStyle::Task => {
+            for event in event_regex.captures_iter(&file_content) {
+                let task = Task::from_str(event.get(0).unwrap().as_str()).unwrap();
+                println!("+-----------a task-----------+\n\n{}\n+----------------------------+",task);
+            }
+        }
+        EventStyle::Habit => {
+            let mut habits = Vec::new();
+            for event in event_regex.captures_iter(&file_content) {
+                habits.push(Habit::from_str(event.get(0).unwrap().as_str()).unwrap())
+                //let habit = Habit::from_str(event.get(0).unwrap().as_str()).unwrap();
+                //println!("+-----------an{}habit-----------+\n\n{}\n+----------------------------+",i,habit);
+
+            }
+        }
+        EventStyle::Appointment => {
+            for event in event_regex.captures_iter(&file_content) {
+                let appointment = Appointment::from_str(event.get(0).unwrap().as_str()).unwrap();
+                println!("+-----------an appointment-----------+\n\n{}\n+----------------------------+",appointment);
+            }
+        }
+        EventStyle::BasicEvent => {
+            for event in event_regex.captures_iter(&file_content) {
+                let basic_event = BasicEvent::from_str(event.get(0).unwrap().as_str()).unwrap();
+                println!("+-----------an basic event-----------+\n\n{}\n+----------------------------+",basic_event);
+            }
+        }
+
+
+    }
+
+}*/
 /* Test functions (will be remove a one point)*/
 
 fn test_things() -> std::io::Result<()>{
 
+    //dir_init().expect("cannot init dirs");
 
-    dir_init().expect("cannot init dirs");
+    println!("{:?}\n\n",Task::event_extractor("./rorg/current/2021.org"));
+    println!("{:?}\n\n",Habit::event_extractor("./rorg/habits.org"));
 
-
-    let a_task: Task = Task::new("Task exemple".to_string(), 0);
-    let an_habit: Habit = Habit::new("habit exemple".to_string());
-    let an_appointment: Appointment = Appointment::new("Appointment exemple".to_string());
-    let an_basic_event: BasicEvent = BasicEvent::new("event exemple".to_string());
-
-
-    let mut file = File::open("./rorg/current/2021.org").expect("cannot open file (1)");
-    let mut file_content = String::new();
-    file.read_to_string(&mut file_content).expect("cannot read file (1)");
-    drop(file);
-
-
-    let mut file = File::create("./rorg/current/2021.org").expect("cannot open file (1)");
-    file_content = format!("{}\n{}",file_content,a_task);
-    file.write_all(file_content.as_bytes()).expect("cannot write file");
-    drop(file);
-
-    let mut file = File::open("./rorg/current/2021.org").expect("cannot open file(2)");
-    let mut contents = String::new();
-    file.read_to_string(&mut contents).expect("cannot read file(2)");
-
-    let task_re = Regex::new(r"(?m)^\*{5} \S{3,4} \[#\d+] .*\n:PROPERTIES:\n(:[A-Z]*: .*\n)*:END:\n:DESCRIPTION:\n(^[^:]*\n)*:END:\n:NOTES:\n(^[^:]*\n)*:END:").unwrap();
-
-    for event in task_re.captures_iter(&contents) {
-        let another_task = Task::from_str(event.get(0).unwrap().as_str()).unwrap();
-        println!("+-----a task in a a file-----+\n\n{}\n+-----------------------------------+",another_task);
-    }
-
-    let an_habit: Habit = Habit::from_str(format!("{}",an_habit).as_str()).unwrap();
-    let an_appointment: Appointment = Appointment::from_str(format!("{}",an_appointment).as_str()).unwrap();
-    let an_basic_event: BasicEvent = BasicEvent::from_str(format!("{}",an_basic_event).as_str()).unwrap();
-
-    println!("{}\n{}\n{}",an_habit,an_appointment,an_basic_event);
     Ok(())
 
 }
