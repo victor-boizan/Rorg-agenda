@@ -149,6 +149,24 @@ impl fmt::Display for Habit {
                     self.state, self.name, self.style, self.description, self.notes)
     }
 }
+impl FromStr for Habit {
+
+    type Err = ();
+    fn from_str(input: &str) -> Result<Habit, ()> {
+
+        let task_re = Regex::new(r"(?m)^\*{5} (?P<state>\S{3,4}) (?P<name>.*)\n:PROPERTIES:\n(:[A-Z]*: .*\n)*:END:\n:DESCRIPTION:\n(?P<description>(^[^:]*\n)*):END:\n:NOTES:\n(?P<notes>(^[^:]*\n)*):END:").unwrap();
+        let caps = task_re.captures(input).unwrap();
+
+        Ok(Habit{
+            name: caps["name"].to_string(),
+            state: EventState::from_str(&caps["state"]).unwrap(),
+            style: EventStyle::Habit,
+            description: caps["description"].to_string(),
+            logs: "".to_string() ,
+            notes: caps["notes"].to_string()
+        })
+    }
+}
 
 #[derive(Debug)]
 struct Appointment {
@@ -189,6 +207,24 @@ impl fmt::Display for Appointment {
                     self.state, self.name, self.style, self.description, self.notes)
     }
 }
+impl FromStr for Appointment {
+
+    type Err = ();
+    fn from_str(input: &str) -> Result<Appointment, ()> {
+
+        let task_re = Regex::new(r"(?m)^\*{5} (?P<state>\S{3,4}) (?P<name>.*)\n:PROPERTIES:\n(:[A-Z]*: .*\n)*:END:\n:DESCRIPTION:\n(?P<description>(^[^:]*\n)*):END:\n:NOTES:\n(?P<notes>(^[^:]*\n)*):END:").unwrap();
+        let caps = task_re.captures(input).unwrap();
+
+        Ok(Appointment{
+            name: caps["name"].to_string(),
+            state: EventState::from_str(&caps["state"]).unwrap(),
+            style: EventStyle::Appointment,
+            description: caps["description"].to_string(),
+            logs: "".to_string() ,
+            notes: caps["notes"].to_string()
+        })
+    }
+}
 
 #[derive(Debug)]
 struct BasicEvent {
@@ -225,7 +261,22 @@ impl fmt::Display for BasicEvent {
                     self.name, self.style, self.description, self.notes)
     }
 }
+impl FromStr for BasicEvent {
 
+    type Err = ();
+    fn from_str(input: &str) -> Result<BasicEvent, ()> {
+
+        let task_re = Regex::new(r"(?m)^\*{5} (?P<name>.*)\n:PROPERTIES:\n(:[A-Z]*: .*\n)*:END:\n:DESCRIPTION:\n(?P<description>(^[^:]*\n)*):END:\n:NOTES:\n(?P<notes>(^[^:]*\n)*):END:").unwrap();
+        let caps = task_re.captures(input).unwrap();
+
+        Ok(BasicEvent{
+            name: caps["name"].to_string(),
+            style: EventStyle::BasicEvent,
+            description: caps["description"].to_string(),
+            notes: caps["notes"].to_string()
+        })
+    }
+}
 
 fn main() -> std::io::Result<()> {
 
@@ -403,6 +454,10 @@ fn test_things() -> std::io::Result<()>{
         let another_task = Task::from_str(event.get(0).unwrap().as_str()).unwrap();
         println!("+-----a task in a a file-----+\n\n{}\n+-----------------------------------+",another_task);
     }
+
+    let an_habit: Habit = Habit::from_str(format!("{}",an_habit).as_str()).unwrap();
+    let an_appointment: Appointment = Appointment::from_str(format!("{}",an_appointment).as_str()).unwrap();
+    let an_basic_event: BasicEvent = BasicEvent::from_str(format!("{}",an_basic_event).as_str()).unwrap();
 
     println!("{}\n{}\n{}",an_habit,an_appointment,an_basic_event);
     Ok(())
