@@ -1,9 +1,15 @@
+/* standard */
 use std::fs;
 
 use std::fmt;
 
 use std::fs::File;
 use std::io::prelude::*;
+
+use std::str::FromStr;
+
+
+use regex::Regex;
 
 use chrono::{DateTime, Utc, TimeZone, Duration};
 
@@ -21,6 +27,20 @@ enum EventState{
     DONE,
     Null,
 }
+impl FromStr for EventState {
+    type Err = ();
+    fn from_str(input: &str) -> Result<EventState, ()> {
+        match input {
+            "TODO"  =>Ok(EventState::TODO),
+            "WIP"  => Ok(EventState::WIP),
+            "REPORT"  => Ok(EventState::REPORT),
+            "DONE" => Ok(EventState::DONE),
+            "" => Ok(EventState::Null),
+            _ => Err(()),
+        }
+    }
+}
+
 #[derive(Debug)]
 enum EventStyle{
     Task,
@@ -68,6 +88,25 @@ impl fmt::Display for Task {
                    \n:END:\
                    ",
                     self.state, self.priority, self.name, self.style, self.description, self.notes)
+    }
+}
+impl FromStr for Task {
+
+    type Err = ();
+    fn from_str(input: &str) -> Result<Task, ()> {
+
+        let task_re = Regex::new(r"(?m)^\*{5} (?P<state>\S{3,4}) \[#(?P<priority>\d+)] (?P<name>.*)\n:PROPERTIES:\n(:[A-Z]*: .*\n)*:END:\n:DESCRIPTION:\n(?P<description>(^[^:]*\n)*):END:\n:NOTES:\n(?P<notes>(^[^:]*\n)*):END:").unwrap();
+        let caps = task_re.captures(input).unwrap();
+
+        Ok(Task{
+            name: caps["name"].to_string(),
+            state: EventState::from_str(&caps["state"]).unwrap(),
+            style: EventStyle::Task,
+            priority: caps["priority"].parse::<u8>().unwrap(),
+            description: caps["description"].to_string(),
+            logs: "".to_string() ,
+            notes: caps["notes"].to_string()
+        })
     }
 }
 
@@ -162,7 +201,7 @@ impl BasicEvent{
     fn new(name: String) -> BasicEvent{
         BasicEvent{
             name: name,
-            style: EventStyle::Task,
+            style: EventStyle::BasicEvent,
             description: "".to_string(),
             notes: "".to_string()
         }
@@ -187,10 +226,10 @@ impl fmt::Display for BasicEvent {
     }
 }
 
+
 fn main() -> std::io::Result<()> {
 
-    test_events();
-
+    test_things();
     Ok(())
 }
 
@@ -329,13 +368,43 @@ fn file_generator(time: TimeRange,year: i32,date: u32) -> String {
 
 }
 
-/* Test functions */
-fn test_events(){
+/* Test functions (will be remove a one point)*/
+
+fn test_things() -> std::io::Result<()>{
+
+
+    dir_init().expect("cannot init dirs");
+
+
     let a_task: Task = Task::new("Task exemple".to_string(), 0);
     let an_habit: Habit = Habit::new("habit exemple".to_string());
     let an_appointment: Appointment = Appointment::new("Appointment exemple".to_string());
     let an_basic_event: BasicEvent = BasicEvent::new("event exemple".to_string());
 
-    println!("{}\n{}\n{}\n{}",a_task,an_habit,an_appointment,an_basic_event);
+
+    let mut file = File::open("./rorg/current/2021.org").expect("cannot open file (1)");
+    let mut file_content = String::new();
+    file.read_to_string(&mut file_content).expect("cannot read file (1)");
+    drop(file);
+
+
+    let mut file = File::create("./rorg/current/2021.org").expect("cannot open file (1)");
+    file_content = format!("{}\n{}",file_content,a_task);
+    file.write_all(file_content.as_bytes()).expect("cannot write file");
+    drop(file);
+
+    let mut file = File::open("./rorg/current/2021.org").expect("cannot open file(2)");
+    let mut contents = String::new();
+    file.read_to_string(&mut contents).expect("cannot read file(2)");
+
+    let task_re = Regex::new(r"(?m)^\*{5} \S{3,4} \[#\d+] .*\n:PROPERTIES:\n(:[A-Z]*: .*\n)*:END:\n:DESCRIPTION:\n(^[^:]*\n)*:END:\n:NOTES:\n(^[^:]*\n)*:END:").unwrap();
+
+    for event in task_re.captures_iter(&contents) {
+        let another_task = Task::from_str(event.get(0).unwrap().as_str()).unwrap();
+        println!("+-----a task in a a file-----+\n\n{}\n+-----------------------------------+",another_task);
+    }
+
+    println!("{}\n{}\n{}",an_habit,an_appointment,an_basic_event);
+    Ok(())
 
 }
