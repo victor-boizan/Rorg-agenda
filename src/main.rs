@@ -1,4 +1,4 @@
-/* standard */
+/* Standard */
 use std::fs;
 
 use std::fmt;
@@ -8,34 +8,46 @@ use std::io::prelude::*;
 
 use std::str::FromStr;
 
-
+/* External crates */
 use regex::Regex;
 
 use chrono::{DateTime, Utc, TimeZone, Duration};
 
-
+/* Types declaration and implementation */
 enum TimeRange{
     Year,
     Month,
     Week
 }
+
 #[derive(Debug)]
 enum EventState{
-    TODO,
-    WIP,
-    REPORT,
-    DONE,
-    Null,
+	TODO,
+
+	WIP,
+
+	FAILED,
+	REPORT,
+
+	DONE,
+
+	Null,
 }
 impl FromStr for EventState {
     type Err = ();
     fn from_str(input: &str) -> Result<EventState, ()> {
         match input {
             "TODO"  =>Ok(EventState::TODO),
+
             "WIP"  => Ok(EventState::WIP),
+
+            "FAILED" => Ok(EventState::FAILED),
             "REPORT"  => Ok(EventState::REPORT),
+
             "DONE" => Ok(EventState::DONE),
+
             "" => Ok(EventState::Null),
+
             _ => Err(()),
         }
     }
@@ -43,10 +55,10 @@ impl FromStr for EventState {
 
 #[derive(Debug)]
 enum EventStyle{
-    Task,
-    Habit,
-    Appointment,
-    BasicEvent
+	Task,
+	Habit,
+	Appt,
+	BasicEvent
 }
 
 #[derive(Debug)]
@@ -88,7 +100,6 @@ impl Task{
         }
         return task;
     }
-
 
 }
 impl fmt::Display for Task {
@@ -219,7 +230,7 @@ impl Appointment{
         Appointment{
             name: name,
             state: EventState::TODO,
-            style: EventStyle::Appointment,
+            style: EventStyle::Appt,
             description: "".to_string(),
             logs: "".to_string(),
             notes: "".to_string()
@@ -272,7 +283,7 @@ impl FromStr for Appointment {
         Ok(Appointment{
             name: caps["name"].to_string(),
             state: EventState::from_str(&caps["state"]).unwrap(),
-            style: EventStyle::Appointment,
+            style: EventStyle::Appt,
             description: caps["description"].to_string(),
             logs: "".to_string() ,
             notes: caps["notes"].to_string()
@@ -349,12 +360,75 @@ impl FromStr for BasicEvent {
     }
 }
 
+/* Main */
 fn main() -> std::io::Result<()> {
 
-    test_things()
+	let mut args = std::env::args();
+	println!("{:?}\n{} arguments",args,args.len());
+	let last_argument = args.len()-1;
+	let mut current_argument = 0;
+
+	while current_argument <= last_argument{
+		println!("{}. ----------------------",current_argument);
+		let argument = args.nth(0).unwrap();
+		println!("argument nb{}/{} : {}\n",current_argument+1,last_argument+1,argument);
+		match argument.as_str(){
+			"--init" => {
+				println!("{:?}",dir_init());
+			},
+			"--read" => {
+				println!{"can't read for now"}
+			}
+			"--add" => {
+				if current_argument == last_argument{
+					println!("can't add anything fo now");
+				} else {
+					current_argument += 1;
+					let next_argument = args.nth(0).unwrap();
+					//println!("{:?}",next_argument);
+					match next_argument.as_str(){
+						"TODO" => println!("it look like you whant to add a TODO entry"),
+						"HABIT" => println!("it look like you whant to add an habit entry"),
+						"APPT" => println!("it look like you whant to add a appointments entry"),
+						"BASE" => println!("it look like you whant to add a basic event entry"),
+						&_ => println!("{} is not a valid value.\nValide values are TODO, HABIT, APPT, BASE",next_argument)
+					}
+				}
+			}
+			"--remove" => {
+				if current_argument == last_argument{
+					println!("can't remove anything for now");
+				} else {
+					current_argument += 1;
+					let next_argument = args.nth(0).unwrap();
+					match next_argument.as_str(){
+						"TODO" => println!("it look like you whant to remove a TODO entry"),
+						"HABIT" => println!("it look like you whant to remove an habit entry"),
+						"APPT" => println!("it look like you whant to remobe a appointments entry"),
+						"BASE" => println!("it look like you whant to remove a basic event entry"),
+						&_ => println!("{} is not a valid value.\nValide values are TODO, HABIT, APPT, BASE",next_argument)
+					}
+
+				}
+			}
+			&_ => {println!("no clue of what to do with \"{}\"",argument)}
+		}
+		current_argument += 1;
+	}
+
+	Ok(())
+
+
+
+
 }
 
-fn dir_init() -> std::io::Result<()> {
+
+
+
+
+/* Functions */
+fn dir_init() -> std::io::Result<u8> {
 
     /*Create the folders*/
     fs::create_dir_all("./rorg/current/months")?;
@@ -415,7 +489,9 @@ fn dir_init() -> std::io::Result<()> {
     let content = "#+TITLE: Special times\n# I use this file for evey recurent events like birthdays";
     file.write_all(content.as_bytes())?;
 
-    Ok(())
+	println!("directories initialised");
+
+    Ok(0)
 }
 fn file_generator(time: TimeRange,year: i32,date: u32) -> String {
 
@@ -488,50 +564,8 @@ fn file_generator(time: TimeRange,year: i32,date: u32) -> String {
     format!("{}{}{}",file_title,begin_content,generic_content)
 
 }
-/*fn event_extractor(path: &str) {
 
-    let mut file = File::open(path).expect("OPEN error in function file_extractor");
-    let mut file_content = String::new();
-    file.read_to_string(&mut file_content).expect("READ error in function file_extractor");
-    drop(file);
-
-    //this regex match all events types
-    let event_regex = Regex::new(r"(?m)^\**.*\n:PROPERTIES:\n(:[A-Z]*: .*\n)*:END:\n:DESCRIPTION:\n(^[^:]*\n)*:END:\n:NOTES:\n(^[^:]*\n)*:END:").unwrap();
-    match style {
-        EventStyle::Task => {
-            for event in event_regex.captures_iter(&file_content) {
-                let task = Task::from_str(event.get(0).unwrap().as_str()).unwrap();
-                println!("+-----------a task-----------+\n\n{}\n+----------------------------+",task);
-            }
-        }
-        EventStyle::Habit => {
-            let mut habits = Vec::new();
-            for event in event_regex.captures_iter(&file_content) {
-                habits.push(Habit::from_str(event.get(0).unwrap().as_str()).unwrap())
-                //let habit = Habit::from_str(event.get(0).unwrap().as_str()).unwrap();
-                //println!("+-----------an{}habit-----------+\n\n{}\n+----------------------------+",i,habit);
-
-            }
-        }
-        EventStyle::Appointment => {
-            for event in event_regex.captures_iter(&file_content) {
-                let appointment = Appointment::from_str(event.get(0).unwrap().as_str()).unwrap();
-                println!("+-----------an appointment-----------+\n\n{}\n+----------------------------+",appointment);
-            }
-        }
-        EventStyle::BasicEvent => {
-            for event in event_regex.captures_iter(&file_content) {
-                let basic_event = BasicEvent::from_str(event.get(0).unwrap().as_str()).unwrap();
-                println!("+-----------an basic event-----------+\n\n{}\n+----------------------------+",basic_event);
-            }
-        }
-
-
-    }
-
-}*/
-/* Test functions (will be remove a one point)*/
-
+/* Test function (will be removed a one point)*/
 fn test_things() -> std::io::Result<()>{
 
     //dir_init().expect("cannot init dirs");
