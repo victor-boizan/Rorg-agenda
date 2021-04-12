@@ -1,9 +1,10 @@
 /* Standard */
-use std::fs;
-
 use std::fmt;
 
+use std::fs;
 use std::fs::File;
+
+use std::io;
 use std::io::prelude::*;
 
 use std::str::FromStr;
@@ -72,12 +73,12 @@ struct Task {
     notes: String
 }
 impl Task{
-    fn new(name: String, priority: u8) -> Task{
+    fn new(name: String) -> Task{
         Task{
             name: name,
             state: EventState::TODO,
             style: EventStyle::Task,
-            priority: priority,
+            priority: 0,
             description: "".to_string(),
             logs: "".to_string(),
             notes: "".to_string()
@@ -217,7 +218,7 @@ impl FromStr for Habit {
 }
 
 #[derive(Debug)]
-struct Appointment {
+struct Appt {
     name: String,
     state: EventState,
     style: EventStyle,
@@ -225,9 +226,9 @@ struct Appointment {
     logs: String,
     notes: String
 }
-impl Appointment{
-    fn new(name: String) -> Appointment{
-        Appointment{
+impl Appt{
+    fn new(name: String) -> Appt{
+        Appt{
             name: name,
             state: EventState::TODO,
             style: EventStyle::Appt,
@@ -236,7 +237,7 @@ impl Appointment{
             notes: "".to_string()
         }
     }
-    fn event_extractor(path: &str) -> Vec<Appointment>{
+    fn event_extractor(path: &str) -> Vec<Appt>{
 
         let mut file = File::open(path).expect("OPEN error in function file_extractor");
         let mut file_content = String::new();
@@ -247,14 +248,14 @@ impl Appointment{
         let event_regex = Regex::new(r"(?m)^\**.*\n:PROPERTIES:\n(:[A-Z]*: .*\n)*:END:\n:DESCRIPTION:\n(^[^:]*\n)*:END:\n:NOTES:\n(^[^:]*\n)*:END:").unwrap();
         let mut appointments = Vec::new();
         for event in event_regex.captures_iter(&file_content) {
-            appointments.push(Appointment::from_str(event.get(0).unwrap().as_str()).unwrap())
+            appointments.push(Appt::from_str(event.get(0).unwrap().as_str()).unwrap())
             //let habit = Habit::from_str(event.get(0).unwrap().as_str()).unwrap();
             //println!("+-----------an{}habit-----------+\n\n{}\n+----------------------------+",i,habit);
         }
         return appointments;
     }
 }
-impl fmt::Display for Appointment {
+impl fmt::Display for Appt {
 
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 
@@ -272,15 +273,15 @@ impl fmt::Display for Appointment {
                     self.state, self.name, self.style, self.description, self.notes)
     }
 }
-impl FromStr for Appointment {
+impl FromStr for Appt {
 
     type Err = ();
-    fn from_str(input: &str) -> Result<Appointment, ()> {
+    fn from_str(input: &str) -> Result<Appt, ()> {
 
         let task_re = Regex::new(r"(?m)^\*{5} (?P<state>\S{3,4}) (?P<name>.*)\n:PROPERTIES:\n(:[A-Z]*: .*\n)*:END:\n:DESCRIPTION:\n(?P<description>(^[^:]*\n)*):END:\n:NOTES:\n(?P<notes>(^[^:]*\n)*):END:").unwrap();
         let caps = task_re.captures(input).unwrap();
 
-        Ok(Appointment{
+        Ok(Appt{
             name: caps["name"].to_string(),
             state: EventState::from_str(&caps["state"]).unwrap(),
             style: EventStyle::Appt,
@@ -381,16 +382,70 @@ fn main() -> std::io::Result<()> {
 			}
 			"--add" => {
 				if current_argument == last_argument{
-					println!("can't add anything fo now");
+
+					println!("What is the name of the entry?");
+					let mut name = String::new();
+					match io::stdin().read_line(&mut name){
+						Ok(_) => {
+							name.pop();
+							println!("You will create an event named {}",name);
+						},
+						Err(e) => println!("error: {}",e)
+					}
+
+					let mut style = String::new();
+					println!("What style of entry \"{}\" is?\n1.Task\n2.Habit\n3.appointment\n4.Basic event\n",name);
+					match io::stdin().read_line(&mut style){
+						Ok(_) => {
+							style.pop();
+							style = style.to_lowercase();
+							match style.as_str(){
+							/*  nb | letter | name | alt*/
+								"1" | "t" | "task" | "todo"=> {
+									let task = Task::new(name);
+									println!("{}",task);
+								},
+								"2" | "H" | "habit" => {
+									let habit = Habit::new(name);
+									println!("{}",habit);
+								},
+								"3" | "a" | "appointment" | "appt" => {
+									let appt = Appt::new(name);
+									println!("{}",appt);
+								},
+								"4" | "b" | "basic event" | "base" => {
+									let base = BasicEvent::new(name);
+									println!("{}",base);
+								},
+								_ => println!("{} is no a valid input.",style)
+							}
+						},
+						Err(e) => println!("error: {}",e)
+					}
+
 				} else {
 					current_argument += 1;
 					let next_argument = args.nth(0).unwrap();
+					current_argument += 1;
+					let name = args.nth(0).unwrap();
 					//println!("{:?}",next_argument);
 					match next_argument.as_str(){
-						"TODO" => println!("it look like you whant to add a TODO entry"),
-						"HABIT" => println!("it look like you whant to add an habit entry"),
-						"APPT" => println!("it look like you whant to add a appointments entry"),
-						"BASE" => println!("it look like you whant to add a basic event entry"),
+						"TODO" => {
+							let task = Task::new(name);
+							println!("{}",task);
+						},
+						"HABIT" => {
+							let habit = Habit::new(name);
+							println!("{}",habit);
+						},
+						"APPT" => {
+							let appt = Appt::new(name);
+							println!("{}",appt);
+						},
+						"BASE" => {
+							let base = BasicEvent::new(name);
+							println!("{}",base);
+						},
 						&_ => println!("{} is not a valid value.\nValide values are TODO, HABIT, APPT, BASE",next_argument)
 					}
 				}
@@ -402,10 +457,10 @@ fn main() -> std::io::Result<()> {
 					current_argument += 1;
 					let next_argument = args.nth(0).unwrap();
 					match next_argument.as_str(){
-						"TODO" => println!("it look like you whant to remove a TODO entry"),
-						"HABIT" => println!("it look like you whant to remove an habit entry"),
-						"APPT" => println!("it look like you whant to remobe a appointments entry"),
-						"BASE" => println!("it look like you whant to remove a basic event entry"),
+						"TODO" => println!("it look like you want to remove a TODO entry"),
+						"HABIT" => println!("it look like you want to remove an habit entry"),
+						"APPT" => println!("it look like you want to remobe a appointments entry"),
+						"BASE" => println!("it look like you want to remove a basic event entry"),
 						&_ => println!("{} is not a valid value.\nValide values are TODO, HABIT, APPT, BASE",next_argument)
 					}
 
@@ -439,20 +494,20 @@ fn dir_init() -> std::io::Result<u8> {
     /*Create the files*/
     let current_folder = "./rorg/current/";
 
-    //get the year,month and week and store them in u32 and i32 for the year
+	/*get the year,month and week and store them in u32 and i32 for the year*/
     let now: DateTime<Utc> = Utc::now();
 
     let year = format!("{}",now.format("%Y")).parse::<i32>().unwrap();
     let month = format!("{}",now.format("%m")).parse::<u32>().unwrap();
     let week = format!("{}",now.format("%W")).parse::<u32>().unwrap();
 
-    //current year
+	/*current year*/
     let filename = format!("{}/{}.org",current_folder, now.format("%Y"));
     let mut file = File::create(filename)?;
     let content = file_generator(TimeRange::Year,year,0);
     file.write_all(content.as_bytes())?;
 
-    //weeks
+	/*weeks*/
     for file_week in week..53{
         let filename: String;
         if file_week < 10{
@@ -465,7 +520,7 @@ fn dir_init() -> std::io::Result<u8> {
         file.write_all(content.as_bytes())?;
     }
 
-    //month
+	/*month*/
     for file_month in month..13{
 
         let work_month = Utc.ymd(year, file_month, 1);
@@ -475,7 +530,7 @@ fn dir_init() -> std::io::Result<u8> {
         file.write_all(content.as_bytes())?;
     }
 
-    //other files
+	/*other files*/
 
     let mut file = File::create("./rorg/habits.org")?;
     let content = "#+TITLE: Habits";
@@ -562,17 +617,5 @@ fn file_generator(time: TimeRange,year: i32,date: u32) -> String {
                             * Records\n";
 
     format!("{}{}{}",file_title,begin_content,generic_content)
-
-}
-
-/* Test function (will be removed a one point)*/
-fn test_things() -> std::io::Result<()>{
-
-    //dir_init().expect("cannot init dirs");
-
-    println!("{:?}\n\n",Task::event_extractor("./rorg/current/2021.org"));
-    println!("{:?}\n\n",Habit::event_extractor("./rorg/habits.org"));
-
-    Ok(())
 
 }
