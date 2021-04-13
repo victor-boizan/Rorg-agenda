@@ -16,9 +16,9 @@ use chrono::{DateTime, Utc, TimeZone, Duration};
 
 /* Types declaration and implementation */
 enum TimeRange{
-    Year,
-    Month,
-    Week
+	Year,
+	Month,
+	Week
 }
 
 #[derive(Debug)]
@@ -47,9 +47,8 @@ impl FromStr for EventState {
 
             "DONE" => Ok(EventState::DONE),
 
-            "" => Ok(EventState::Null),
+            _ => Ok(EventState::Null),
 
-            _ => Err(()),
         }
     }
 }
@@ -61,304 +60,130 @@ enum EventStyle{
 	Appt,
 	BasicEvent
 }
-
-#[derive(Debug)]
-struct Task {
-    name: String,
-    state: EventState,
-    style: EventStyle,
-    priority: u8,
-    description: String,
-    logs: String,
-    notes: String
+impl EventStyle{
+	fn defaultstate(&self) -> EventState {
+		match self {
+			EventStyle::Task => EventState::TODO,
+			EventStyle::Habit => EventState::TODO,
+			EventStyle::Appt => EventState::TODO,
+			EventStyle::BasicEvent => EventState::Null,
+		}
+	}
 }
-impl Task{
-    fn new(name: String) -> Task{
-        Task{
-            name: name,
-            state: EventState::TODO,
-            style: EventStyle::Task,
-            priority: 0,
-            description: "".to_string(),
-            logs: "".to_string(),
-            notes: "".to_string()
-        }
-    }
-    fn event_extractor(path: &str) -> Vec<Task>{
-
-        let mut file = File::open(path).expect("OPEN error in function file_extractor");
-        let mut file_content = String::new();
-        file.read_to_string(&mut file_content).expect("READ error in function file_extractor");
-        drop(file);
-
-        //this regex match all events types
-        let event_regex = Regex::new(r"(?m)^\**.*\n:PROPERTIES:\n(:[A-Z]*: .*\n)*:END:\n:DESCRIPTION:\n(^[^:]*\n)*:END:\n:NOTES:\n(^[^:]*\n)*:END:").unwrap();
-        let mut task = Vec::new();
-        for event in event_regex.captures_iter(&file_content) {
-            task.push(Task::from_str(event.get(0).unwrap().as_str()).unwrap())
-            //let habit = Habit::from_str(event.get(0).unwrap().as_str()).unwrap();
-            //println!("+-----------an{}habit-----------+\n\n{}\n+----------------------------+",i,habit);
-        }
-        return task;
-    }
-
-}
-impl fmt::Display for Task {
-
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-
-        write!(f, "***** {:?} [#{}] {}\
-                   \n:PROPERTIES:\
-                   \n:STYLE: {:?}\
-                   \n:END:\
-                   \n:DESCRIPTION:\
-                   \n{}\
-                   \n:END:\
-                   \n:NOTES:\
-                   \n{}\
-                   \n:END:\
-                   ",
-                    self.state, self.priority, self.name, self.style, self.description, self.notes)
-    }
-}
-impl FromStr for Task {
-
-    type Err = ();
-    fn from_str(input: &str) -> Result<Task, ()> {
-
-        let task_re = Regex::new(r"(?m)^\*{5} (?P<state>\S{3,4}) \[#(?P<priority>\d+)] (?P<name>.*)\n:PROPERTIES:\n(:[A-Z]*: .*\n)*:END:\n:DESCRIPTION:\n(?P<description>(^[^:]*\n)*):END:\n:NOTES:\n(?P<notes>(^[^:]*\n)*):END:").unwrap();
-        let caps = task_re.captures(input).unwrap();
-
-        Ok(Task{
-            name: caps["name"].to_string(),
-            state: EventState::from_str(&caps["state"]).unwrap(),
-            style: EventStyle::Task,
-            priority: caps["priority"].parse::<u8>().unwrap(),
-            description: caps["description"].to_string(),
-            logs: "".to_string() ,
-            notes: caps["notes"].to_string()
-        })
-    }
+impl FromStr for EventStyle {
+	type Err = ();
+	fn from_str(input: &str) -> Result<EventStyle, ()> {
+		match input {
+			"Task"  =>Ok(EventStyle::Task),
+			"Habit"  => Ok(EventStyle::Habit),
+			"Appt" => Ok(EventStyle::Appt),
+			"BasicEvent"  => Ok(EventStyle::BasicEvent),
+			_ => Err(()),
+		}
+	}
 }
 
 #[derive(Debug)]
-struct Habit {
-    name: String,
-    state: EventState,
-    style: EventStyle,
-    description: String,
-    logs: String,
-    notes: String
+struct Event{
+	name: String,
+	state: EventState,
+	style: EventStyle,
+	priority: u8,
+	description: String,
+	logs: String,
+	notes: String
 }
-impl Habit{
-    fn new(name: String) -> Habit{
-        Habit{
-            name: name,
-            state: EventState::TODO,
-            style: EventStyle::Habit,
-            description: "".to_string(),
-            logs: "".to_string(),
-            notes: "".to_string()
-        }
-    }
-    fn event_extractor(path: &str) -> Vec<Habit>{
+impl Event {
+	fn new(style: EventStyle,name: String) -> Event {
+		Event{
+			name,
+			state: style.defaultstate(),
+			style,
+			priority: 0,
+			description: String::new(),
+			logs: String::new(),
+			notes: String::new()
+		}
+	}
+	fn event_extractor(path: &str) -> Vec<Event> {
 
-        let mut file = File::open(path).expect("OPEN error in function file_extractor");
-        let mut file_content = String::new();
-        file.read_to_string(&mut file_content).expect("READ error in function file_extractor");
-        drop(file);
+		let mut file = File::open(path).expect("OPEN error in function file_extractor");
+		let mut file_content = String::new();
+		file.read_to_string(&mut file_content).expect("READ error in function file_extractor");
+		drop(file);
 
-        //this regex match all events types
-        let event_regex = Regex::new(r"(?m)^\**.*\n:PROPERTIES:\n(:[A-Z]*: .*\n)*:END:\n:DESCRIPTION:\n(^[^:]*\n)*:END:\n:NOTES:\n(^[^:]*\n)*:END:").unwrap();
-        let mut habits = Vec::new();
-        for event in event_regex.captures_iter(&file_content) {
-            habits.push(Habit::from_str(event.get(0).unwrap().as_str()).unwrap())
-            //let habit = Habit::from_str(event.get(0).unwrap().as_str()).unwrap();
-            //println!("+-----------an{}habit-----------+\n\n{}\n+----------------------------+",i,habit);
-        }
-        return habits;
-    }
+		//this regex match all events types
+		let event_regex = Regex::new(r"(?m)^\*{5} (?P<state>[A-Z]{3,4})? ?\[?#?(?P<priority>\d*)?]? ?(?P<name>.*)\n:PROPERTIES:\n:STYLE: (?P<style>[A-z]+)\n(?::[A-Z]*: .*\n)*:END:\n:DESCRIPTION:\n(?P<description>^[^:]*\n*):END:\n:NOTES:\n(?P<notes>^[^:]*\n*):END:").unwrap();
+		let mut event_vector = Vec::new();
 
+		for event in event_regex.captures_iter(&file_content) {
+			event_vector.push(Event::from_str(event.get(0).unwrap().as_str()).unwrap())
+		}
+
+		return event_vector;
+	}
 }
-impl fmt::Display for Habit {
-
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-
-        write!(f, "***** {:?} {}\
-                   \n:PROPERTIES:\
-                   \n:STYLE: {:?}\
-                   \n:END:\
-                   \n:DESCRIPTION:\
-                   \n{}\
-                   \n:END:\
-                   \n:NOTES:\
-                   \n{}\
-                   \n:END:\
-                   ",
-                    self.state, self.name, self.style, self.description, self.notes)
-    }
+impl fmt::Display for Event {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		match self.style {
+			EventStyle::Task => {
+				write!(f, "***** {:?} [#{:?}] {}\
+					\n:PROPERTIES:\n:STYLE: Task\n:END:\
+					\n:DESCRIPTION:\n{}\n:END:\
+					\n:NOTES:\n{}\n:END:",
+					self.state, self.priority, self.name, self.description, self.notes
+				)
+			},
+			EventStyle::Habit  => {
+				write!(f, "***** {:?} {}\
+					\n:PROPERTIES:\n:STYLE: Habit\n:END:\
+					\n:DESCRIPTION:\n{}\n:END:\
+					\n:NOTES:\n{}\n:END:",
+					self.state, self.name, self.description, self.notes
+				)
+			},
+			EventStyle::Appt => {
+				write!(f, "***** {:?} {}\
+					\n:PROPERTIES:\n:STYLE: Appt\n:END:\
+					\n:DESCRIPTION:\n{}\n:END:\
+					\n:NOTES:\n{}\n:END:",
+					self.state, self.name, self.description, self.notes
+				)
+			},
+			EventStyle::BasicEvent => {
+				write!(f, "***** {}\
+					\n:PROPERTIES:\n:STYLE: BasicEvent\n:END:\
+					\n:DESCRIPTION:\n{}\n:END:\
+					\n:NOTES:\n{}\n:END:",
+					self.name, self.description, self.notes
+				)
+			},
+		}
+	}
 }
-impl FromStr for Habit {
+impl FromStr for Event {
+	type Err = ();
 
-    type Err = ();
-    fn from_str(input: &str) -> Result<Habit, ()> {
+	fn from_str(input: &str) -> Result<Event, ()> {
+		let event_regex = Regex::new(r"(?m)^\*{5} (?P<state>[A-Z]{3,4})? ?\[?#?(?P<priority>\d*)?]? ?(?P<name>.*)\n:PROPERTIES:\n:STYLE: (?P<style>[A-z]+)\n(?::[A-Z]*: .*\n)*:END:\n:DESCRIPTION:\n(?P<description>^[^:]*\n*):END:\n:NOTES:\n(?P<notes>^[^:]*\n*):END:").unwrap();
+		let caps = event_regex.captures(input).unwrap();
+		let state: EventState;
 
-        let task_re = Regex::new(r"(?m)^\*{5} (?P<state>\S{3,4}) (?P<name>.*)\n:PROPERTIES:\n(:[A-Z]*: .*\n)*:END:\n:DESCRIPTION:\n(?P<description>(^[^:]*\n)*):END:\n:NOTES:\n(?P<notes>(^[^:]*\n)*):END:").unwrap();
-        let caps = task_re.captures(input).unwrap();
+		match caps.name("state"){
+			Some(_) => {state = EventState::from_str(&caps["state"]).unwrap()},
+			_ => {state = EventState::Null}
+		}
 
-        Ok(Habit{
-            name: caps["name"].to_string(),
-            state: EventState::from_str(&caps["state"]).unwrap(),
-            style: EventStyle::Habit,
-            description: caps["description"].to_string(),
-            logs: "".to_string() ,
-            notes: caps["notes"].to_string()
-        })
-    }
-}
-
-#[derive(Debug)]
-struct Appt {
-    name: String,
-    state: EventState,
-    style: EventStyle,
-    description: String,
-    logs: String,
-    notes: String
-}
-impl Appt{
-    fn new(name: String) -> Appt{
-        Appt{
-            name: name,
-            state: EventState::TODO,
-            style: EventStyle::Appt,
-            description: "".to_string(),
-            logs: "".to_string(),
-            notes: "".to_string()
-        }
-    }
-    fn event_extractor(path: &str) -> Vec<Appt>{
-
-        let mut file = File::open(path).expect("OPEN error in function file_extractor");
-        let mut file_content = String::new();
-        file.read_to_string(&mut file_content).expect("READ error in function file_extractor");
-        drop(file);
-
-        //this regex match all events types
-        let event_regex = Regex::new(r"(?m)^\**.*\n:PROPERTIES:\n(:[A-Z]*: .*\n)*:END:\n:DESCRIPTION:\n(^[^:]*\n)*:END:\n:NOTES:\n(^[^:]*\n)*:END:").unwrap();
-        let mut appointments = Vec::new();
-        for event in event_regex.captures_iter(&file_content) {
-            appointments.push(Appt::from_str(event.get(0).unwrap().as_str()).unwrap())
-            //let habit = Habit::from_str(event.get(0).unwrap().as_str()).unwrap();
-            //println!("+-----------an{}habit-----------+\n\n{}\n+----------------------------+",i,habit);
-        }
-        return appointments;
-    }
-}
-impl fmt::Display for Appt {
-
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-
-        write!(f, "***** {:?} {}\
-                   \n:PROPERTIES:\
-                   \n:STYLE: {:?}\
-                   \n:END:\
-                   \n:DESCRIPTION:\
-                   \n{}\
-                   \n:END:\
-                   \n:NOTES:\
-                   \n{}\
-                   \n:END:\
-                   ",
-                    self.state, self.name, self.style, self.description, self.notes)
-    }
-}
-impl FromStr for Appt {
-
-    type Err = ();
-    fn from_str(input: &str) -> Result<Appt, ()> {
-
-        let task_re = Regex::new(r"(?m)^\*{5} (?P<state>\S{3,4}) (?P<name>.*)\n:PROPERTIES:\n(:[A-Z]*: .*\n)*:END:\n:DESCRIPTION:\n(?P<description>(^[^:]*\n)*):END:\n:NOTES:\n(?P<notes>(^[^:]*\n)*):END:").unwrap();
-        let caps = task_re.captures(input).unwrap();
-
-        Ok(Appt{
-            name: caps["name"].to_string(),
-            state: EventState::from_str(&caps["state"]).unwrap(),
-            style: EventStyle::Appt,
-            description: caps["description"].to_string(),
-            logs: "".to_string() ,
-            notes: caps["notes"].to_string()
-        })
-    }
-}
-
-#[derive(Debug)]
-struct BasicEvent {
-    name: String,
-    style: EventStyle,
-    description: String,
-    notes: String
-}
-impl BasicEvent{
-    fn new(name: String) -> BasicEvent{
-        BasicEvent{
-            name: name,
-            style: EventStyle::BasicEvent,
-            description: "".to_string(),
-            notes: "".to_string()
-        }
-    }
-    fn event_extractor(path: &str) -> Vec<BasicEvent>{
-
-        let mut file = File::open(path).expect("OPEN error in function file_extractor");
-        let mut file_content = String::new();
-        file.read_to_string(&mut file_content).expect("READ error in function file_extractor");
-        drop(file);
-
-        //this regex match all events types
-        let event_regex = Regex::new(r"(?m)^\**.*\n:PROPERTIES:\n(:[A-Z]*: .*\n)*:END:\n:DESCRIPTION:\n(^[^:]*\n)*:END:\n:NOTES:\n(^[^:]*\n)*:END:").unwrap();
-        let mut basic_events = Vec::new();
-        for event in event_regex.captures_iter(&file_content) {
-            basic_events.push(BasicEvent::from_str(event.get(0).unwrap().as_str()).unwrap())
-            //let habit = Habit::from_str(event.get(0).unwrap().as_str()).unwrap();
-            //println!("+-----------an{}habit-----------+\n\n{}\n+----------------------------+",i,habit);
-        }
-        return basic_events;
-    }
-}
-impl fmt::Display for BasicEvent {
-
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-
-        write!(f, "***** {}\
-                   \n:PROPERTIES:\
-                   \n:STYLE: {:?}\
-                   \n:END:\
-                   \n:DESCRIPTION:\
-                   \n{}\
-                   \n:END:\
-                   \n:NOTES:\
-                   \n{}\
-                   \n:END:\
-                   ",
-                    self.name, self.style, self.description, self.notes)
-    }
-}
-impl FromStr for BasicEvent {
-
-    type Err = ();
-    fn from_str(input: &str) -> Result<BasicEvent, ()> {
-
-        let task_re = Regex::new(r"(?m)^\*{5} (?P<name>.*)\n:PROPERTIES:\n(:[A-Z]*: .*\n)*:END:\n:DESCRIPTION:\n(?P<description>(^[^:]*\n)*):END:\n:NOTES:\n(?P<notes>(^[^:]*\n)*):END:").unwrap();
-        let caps = task_re.captures(input).unwrap();
-
-        Ok(BasicEvent{
-            name: caps["name"].to_string(),
-            style: EventStyle::BasicEvent,
-            description: caps["description"].to_string(),
-            notes: caps["notes"].to_string()
-        })
-    }
+		Ok(Event{
+			name: caps["name"].to_string(),
+			state,
+			style: EventStyle::from_str(&caps["style"]).unwrap(),
+			priority: caps["priority"].parse::<u8>().unwrap_or(0),
+			description: caps["description"].to_string(),
+			logs: "".to_string() ,
+			notes: caps["notes"].to_string()
+		})
+	}
 }
 
 /* Main */
@@ -402,20 +227,20 @@ fn main() -> std::io::Result<()> {
 							match style.as_str(){
 							/*  nb | letter | name | alt*/
 								"1" | "t" | "task" | "todo"=> {
-									let task = Task::new(name);
-									println!("{}",task);
+									let event = Event::new(EventStyle::Task,name);
+									println!("{}",event);
 								},
 								"2" | "H" | "habit" => {
-									let habit = Habit::new(name);
-									println!("{}",habit);
+									let event = Event::new(EventStyle::Habit,name);
+									println!("{}",event);
 								},
 								"3" | "a" | "appointment" | "appt" => {
-									let appt = Appt::new(name);
-									println!("{}",appt);
+									let event = Event::new(EventStyle::Appt,name);
+									println!("{}",event);
 								},
 								"4" | "b" | "basic event" | "base" => {
-									let base = BasicEvent::new(name);
-									println!("{}",base);
+									let event = Event::new(EventStyle::BasicEvent,name);
+									println!("{}",event);
 								},
 								_ => println!("{} is no a valid input.",style)
 							}
@@ -431,20 +256,20 @@ fn main() -> std::io::Result<()> {
 					//println!("{:?}",next_argument);
 					match next_argument.as_str(){
 						"TODO" => {
-							let task = Task::new(name);
-							println!("{}",task);
+							let event = Event::new(EventStyle::Task,name);
+							println!("{}",event);
 						},
 						"HABIT" => {
-							let habit = Habit::new(name);
-							println!("{}",habit);
+							let event = Event::new(EventStyle::Task,name);
+							println!("{}",event);
 						},
 						"APPT" => {
-							let appt = Appt::new(name);
-							println!("{}",appt);
+							let event = Event::new(EventStyle::Task,name);
+							println!("{}",event);
 						},
 						"BASE" => {
-							let base = BasicEvent::new(name);
-							println!("{}",base);
+							let event = Event::new(EventStyle::Task,name);
+							println!("{}",event);
 						},
 						&_ => println!("{} is not a valid value.\nValide values are TODO, HABIT, APPT, BASE",next_argument)
 					}
@@ -472,9 +297,6 @@ fn main() -> std::io::Result<()> {
 	}
 
 	Ok(())
-
-
-
 
 }
 
