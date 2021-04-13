@@ -55,10 +55,10 @@ impl FromStr for EventState {
 
 #[derive(Debug)]
 enum EventStyle{
-	Task,
-	Habit,
 	Appt,
-	BasicEvent
+	Basic,
+	Habit,
+	Task,
 }
 impl EventStyle{
 	fn defaultstate(&self) -> EventState {
@@ -66,7 +66,7 @@ impl EventStyle{
 			EventStyle::Task => EventState::TODO,
 			EventStyle::Habit => EventState::TODO,
 			EventStyle::Appt => EventState::TODO,
-			EventStyle::BasicEvent => EventState::Null,
+			EventStyle::Basic => EventState::Null,
 		}
 	}
 }
@@ -77,7 +77,7 @@ impl FromStr for EventStyle {
 			"Task"  =>Ok(EventStyle::Task),
 			"Habit"  => Ok(EventStyle::Habit),
 			"Appt" => Ok(EventStyle::Appt),
-			"BasicEvent"  => Ok(EventStyle::BasicEvent),
+			"Basic"  => Ok(EventStyle::Basic),
 			_ => Err(()),
 		}
 	}
@@ -123,44 +123,67 @@ impl Event {
 		return event_vector;
 	}
 }
+
 impl fmt::Display for Event {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		match self.style {
-			EventStyle::Task => {
-				write!(f, "***** {:?} [#{:?}] {}\
-					\n:PROPERTIES:\n:STYLE: Task\n:END:\
-					\n:DESCRIPTION:\n{}\n:END:\
-					\n:NOTES:\n{}\n:END:",
-					self.state, self.priority, self.name, self.description, self.notes
-				)
-			},
-			EventStyle::Habit  => {
-				write!(f, "***** {:?} {}\
-					\n:PROPERTIES:\n:STYLE: Habit\n:END:\
-					\n:DESCRIPTION:\n{}\n:END:\
-					\n:NOTES:\n{}\n:END:",
-					self.state, self.name, self.description, self.notes
-				)
-			},
-			EventStyle::Appt => {
-				write!(f, "***** {:?} {}\
-					\n:PROPERTIES:\n:STYLE: Appt\n:END:\
-					\n:DESCRIPTION:\n{}\n:END:\
-					\n:NOTES:\n{}\n:END:",
-					self.state, self.name, self.description, self.notes
-				)
-			},
-			EventStyle::BasicEvent => {
-				write!(f, "***** {}\
-					\n:PROPERTIES:\n:STYLE: BasicEvent\n:END:\
-					\n:DESCRIPTION:\n{}\n:END:\
-					\n:NOTES:\n{}\n:END:",
-					self.name, self.description, self.notes
-				)
-			},
+	fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+		if formatter.alternate() {
+			match self.style {
+				EventStyle::Appt  => {
+					write!(formatter, "***** {:?} {}\
+						\n:PROPERTIES:\n:STYLE: Appt\n:END:\
+						\n:DESCRIPTION:\n{}\n:END:\
+						\n:NOTES:\n{}\n:END:",
+						self.state, self.name, self.description, self.notes
+					)
+				},
+				EventStyle::Basic => {
+					write!(formatter, "***** {}\
+						\n:PROPERTIES:\n:STYLE: Basic\n:END:\
+						\n:DESCRIPTION:\n{}\n:END:\
+						\n:NOTES:\n{}\n:END:",
+						self.name, self.description, self.notes
+					)
+				}
+				EventStyle::Habit => {
+					write!(formatter, "***** {:?} {}\
+						\n:PROPERTIES:\n:STYLE: Habit\n:END:\
+						\n:DESCRIPTION:\n{}\n:END:\
+						\n:NOTES:\n{}\n:END:",
+						self.state, self.name, self.description, self.notes
+					)
+				},
+				EventStyle::Task  => {
+					write!(formatter, "***** {:?} [#{:?}] {}\
+						\n:PROPERTIES:\n:STYLE: Task\n:END:\
+						\n:DESCRIPTION:\n{}\n:END:\
+						\n:NOTES:\n{}\n:END:",
+						self.state, self.priority, self.name, self.description, self.notes
+					)
+				},
+			}
+		} else {
+			match self.style {
+				EventStyle::Appt  =>{
+					write!(formatter, "{:?} {}\nDescription:\n{}Notes:\n{}",
+						self.state, self.name, self.description, self.notes)
+				},
+				EventStyle::Basic =>{
+					write!(formatter, "{}\nDescription:\n{}Notes:\n{}",
+						self.name, self.description, self.notes)
+				},
+				EventStyle::Habit =>{
+					write!(formatter, "{:?} {}\nDescription:\n{}Notes:\n{}",
+						self.state, self.name, self.description, self.notes)
+				},
+				EventStyle::Task  =>{
+					write!(formatter, "[#{:?}] {:?} {}\nDescription:\n{}Notes:\n{}",
+						self.priority, self.state, self.name, self.description, self.notes)
+				},
+			}
 		}
 	}
 }
+
 impl FromStr for Event {
 	type Err = ();
 
@@ -194,7 +217,7 @@ fn main() -> std::io::Result<()> {
 	let last_argument = args.len()-1;
 	let mut current_argument = 0;
 
-	while current_argument <= last_argument{
+	while args.len() >= 1 {
 		println!("{}. ----------------------",current_argument);
 		let argument = args.nth(0).unwrap();
 		println!("argument nb{}/{} : {}\n",current_argument+1,last_argument+1,argument);
@@ -203,7 +226,11 @@ fn main() -> std::io::Result<()> {
 				println!("{:?}",dir_init());
 			},
 			"--read" => {
-				println!{"can't read for now"}
+				let events = Event::event_extractor(args.nth(0).unwrap().as_str());
+				for entry in events{
+					println!("{}",entry);
+				}
+
 			}
 			"--add" => {
 				if current_argument == last_argument{
@@ -230,7 +257,7 @@ fn main() -> std::io::Result<()> {
 									let event = Event::new(EventStyle::Task,name);
 									println!("{}",event);
 								},
-								"2" | "H" | "habit" => {
+								"2" | "h" | "habit" => {
 									let event = Event::new(EventStyle::Habit,name);
 									println!("{}",event);
 								},
@@ -239,7 +266,7 @@ fn main() -> std::io::Result<()> {
 									println!("{}",event);
 								},
 								"4" | "b" | "basic event" | "base" => {
-									let event = Event::new(EventStyle::BasicEvent,name);
+									let event = Event::new(EventStyle::Basic,name);
 									println!("{}",event);
 								},
 								_ => println!("{} is no a valid input.",style)
@@ -260,15 +287,15 @@ fn main() -> std::io::Result<()> {
 							println!("{}",event);
 						},
 						"HABIT" => {
-							let event = Event::new(EventStyle::Task,name);
+							let event = Event::new(EventStyle::Habit,name);
 							println!("{}",event);
 						},
 						"APPT" => {
-							let event = Event::new(EventStyle::Task,name);
+							let event = Event::new(EventStyle::Appt,name);
 							println!("{}",event);
 						},
-						"BASE" => {
-							let event = Event::new(EventStyle::Task,name);
+						"BASIC" => {
+							let event = Event::new(EventStyle::Basic,name);
 							println!("{}",event);
 						},
 						&_ => println!("{} is not a valid value.\nValide values are TODO, HABIT, APPT, BASE",next_argument)
@@ -299,10 +326,6 @@ fn main() -> std::io::Result<()> {
 	Ok(())
 
 }
-
-
-
-
 
 /* Functions */
 fn dir_init() -> std::io::Result<u8> {
