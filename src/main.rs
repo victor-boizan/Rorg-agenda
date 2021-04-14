@@ -373,7 +373,11 @@ fn main() -> std::io::Result<()> {
 
 				} else {
 					if args.len() < 3{
+<<<<<<< HEAD
 						println!("ERROR:\n You need to provide 3 parameter or none for --add.\n\
+=======
+						println!("ERROR:\n You need to provide at least 3 parametter or none for --add.\n\
+>>>>>>> d50e75950fe65e71345a9b1f950475b6c42e8c40
 									Exemples:\n rorg --add\n rorg --add taskname task ./rorg/current/week/w00.org");
 						std::process::exit(-1);
 					}
