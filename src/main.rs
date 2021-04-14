@@ -113,7 +113,7 @@ impl Event {
 		drop(file);
 
 		//this regex match all events types
-		let event_regex = Regex::new(r"(?m)^\*{5} (?P<state>[A-Z]{3,4})? ?\[?#?(?P<priority>\d*)?]? ?(?P<name>.*)\n:PROPERTIES:\n:STYLE: (?P<style>[A-z]+)\n(?::[A-Z]*: .*\n)*:END:\n:DESCRIPTION:\n(?P<description>^[^:]*\n*):END:\n:NOTES:\n(?P<notes>^[^:]*\n*):END:").unwrap();
+		let event_regex = Regex::new(r"(?m)^\*{3} (?P<state>[A-Z]{3,4})? ?\[?#?(?P<priority>\d*)?]? ?(?P<name>.*)\n:PROPERTIES:\n:STYLE: (?P<style>[A-z]+)\n(?::[A-Z]*: .*\n)*:END:\n:DESCRIPTION:\n(?P<description>^[^:]*\n*):END:\n:NOTES:\n(?P<notes>^[^:]*\n*):END:").unwrap();
 		let mut event_vector = Vec::new();
 
 		for event in event_regex.captures_iter(&file_content) {
@@ -123,13 +123,12 @@ impl Event {
 		return event_vector;
 	}
 }
-
 impl fmt::Display for Event {
 	fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
 		if formatter.alternate() {
 			match self.style {
 				EventStyle::Appt  => {
-					write!(formatter, "***** {:?} {}\
+					write!(formatter, "*** {:?} {}\
 						\n:PROPERTIES:\n:STYLE: Appt\n:END:\
 						\n:DESCRIPTION:\n{}\n:END:\
 						\n:NOTES:\n{}\n:END:",
@@ -137,7 +136,7 @@ impl fmt::Display for Event {
 					)
 				},
 				EventStyle::Basic => {
-					write!(formatter, "***** {}\
+					write!(formatter, "*** {}\
 						\n:PROPERTIES:\n:STYLE: Basic\n:END:\
 						\n:DESCRIPTION:\n{}\n:END:\
 						\n:NOTES:\n{}\n:END:",
@@ -145,7 +144,7 @@ impl fmt::Display for Event {
 					)
 				}
 				EventStyle::Habit => {
-					write!(formatter, "***** {:?} {}\
+					write!(formatter, "*** {:?} {}\
 						\n:PROPERTIES:\n:STYLE: Habit\n:END:\
 						\n:DESCRIPTION:\n{}\n:END:\
 						\n:NOTES:\n{}\n:END:",
@@ -153,7 +152,7 @@ impl fmt::Display for Event {
 					)
 				},
 				EventStyle::Task  => {
-					write!(formatter, "***** {:?} [#{:?}] {}\
+					write!(formatter, "*** {:?} [#{:?}] {}\
 						\n:PROPERTIES:\n:STYLE: Task\n:END:\
 						\n:DESCRIPTION:\n{}\n:END:\
 						\n:NOTES:\n{}\n:END:",
@@ -183,12 +182,11 @@ impl fmt::Display for Event {
 		}
 	}
 }
-
 impl FromStr for Event {
 	type Err = ();
 
 	fn from_str(input: &str) -> Result<Event, ()> {
-		let event_regex = Regex::new(r"(?m)^\*{5} (?P<state>[A-Z]{3,4})? ?\[?#?(?P<priority>\d*)?]? ?(?P<name>.*)\n:PROPERTIES:\n:STYLE: (?P<style>[A-z]+)\n(?::[A-Z]*: .*\n)*:END:\n:DESCRIPTION:\n(?P<description>^[^:]*\n*):END:\n:NOTES:\n(?P<notes>^[^:]*\n*):END:").unwrap();
+		let event_regex = Regex::new(r"(?m)^\*{3} (?P<state>[A-Z]{3,4})? ?\[?#?(?P<priority>\d*)?]? ?(?P<name>.*)\n:PROPERTIES:\n:STYLE: (?P<style>[A-z]+)\n(?::[A-Z]*: .*\n)*:END:\n:DESCRIPTION:\n(?P<description>^[^:]*\n*):END:\n:NOTES:\n(?P<notes>^[^:]*\n*):END:").unwrap();
 		let caps = event_regex.captures(input).unwrap();
 		let state: EventState;
 
@@ -265,7 +263,7 @@ fn main() -> std::io::Result<()> {
 									let event = Event::new(EventStyle::Appt,name);
 									println!("{}",event);
 								},
-								"4" | "b" | "basic event" | "base" => {
+								"4" | "b" | "basic" | "" => {
 									let event = Event::new(EventStyle::Basic,name);
 									println!("{}",event);
 								},
@@ -276,30 +274,30 @@ fn main() -> std::io::Result<()> {
 					}
 
 				} else {
-					current_argument += 1;
-					let next_argument = args.nth(0).unwrap();
+					if args.len() < 3{
+						println!("ERROR:\n You need to provide at least 3 parametter or none for --add.\n\
+									Exemples:\n rorg --add\n rorg --add taskname task ./rorg/current/week/w00.org");
+						std::process::exit(-1);
+					}
 					current_argument += 1;
 					let name = args.nth(0).unwrap();
-					//println!("{:?}",next_argument);
-					match next_argument.as_str(){
-						"TODO" => {
-							let event = Event::new(EventStyle::Task,name);
-							println!("{}",event);
-						},
-						"HABIT" => {
-							let event = Event::new(EventStyle::Habit,name);
-							println!("{}",event);
-						},
-						"APPT" => {
-							let event = Event::new(EventStyle::Appt,name);
-							println!("{}",event);
-						},
-						"BASIC" => {
-							let event = Event::new(EventStyle::Basic,name);
-							println!("{}",event);
-						},
-						&_ => println!("{} is not a valid value.\nValide values are TODO, HABIT, APPT, BASE",next_argument)
+					current_argument += 1;
+
+					/*I assign a value here beaucause it let me modify it later in the match below*/
+					let mut style = EventStyle::Basic;
+
+					let style_arg = args.nth(0).unwrap();
+					match style_arg.to_lowercase().as_str(){
+						"task"  => style = EventStyle::Task,
+						"habit" => style = EventStyle::Habit,
+						"appt"  => style = EventStyle::Appt,
+						"basic" => style = EventStyle::Basic,
+						&_ => println!("{} is not a valid value.\nValide values are TODO, HABIT, APPT, BASE",style_arg)
 					}
+					let event=Event::new(style, name);
+					let path = args.nth(0).unwrap();
+					event_add(event, path)
+
 				}
 			}
 			"--remove" => {
@@ -463,4 +461,16 @@ fn file_generator(time: TimeRange,year: i32,date: u32) -> String {
 
     format!("{}{}{}",file_title,begin_content,generic_content)
 
+}
+fn event_add(event: Event, path: String){
+	/*open and read the file*/
+	let mut file = File::open(&path).expect("OPEN error in function event_add");
+	let mut file_content = String::new();
+	file.read_to_string(&mut file_content).expect("READ error in function event_add");
+	drop(file);
+	/*concatenate file content and the event*/
+	file_content = format!("{}\n{:#}",file_content,event);
+	/*rewrite the file*/
+	let mut new_file = File::create(&path).unwrap();
+	new_file.write_all(file_content.as_bytes());
 }
