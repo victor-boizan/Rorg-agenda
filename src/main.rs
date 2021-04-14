@@ -22,6 +22,104 @@ enum TimeRange{
 }
 
 #[derive(Debug)]
+enum FileType{
+	/*Task files*/
+	Year,
+	Month,
+	Week,
+
+	/*other files*/
+	Basic,
+	Habit,
+	Appt
+}
+#[derive(Debug)]
+struct RorgFile{
+	file_type: FileType,
+	title:     String,
+	forcast:   Option<String>,
+	events:    Vec<Event>,
+	notes:     Option<String>,
+	records:   Option<String>
+}
+
+impl RorgFile{
+	fn from_file(path: &str) -> RorgFile {
+
+		/*Open the file and get it's content*/
+		let mut file = File::open(path).expect("OPEN error in function file_extractor");
+		let mut file_content = String::new();
+		file.read_to_string(&mut file_content).expect("READ error in function file_extractor");
+		drop(file);
+
+		let file_regex = Regex::new(r"(?m)#\+TITLE: (?P<Title>.*)\n*(?:\* Forcast\n)?(?P<Forcast>^[^\*]*\n*)?\*(?:.*\n)+?\* Notes\n(?P<Notes>^[^\*]*\n*)\n\* Records\n(?P<Records>^[^\*]*\n*)").unwrap();
+		let file_capture = file_regex.captures(file_content.as_str()).unwrap();
+
+		let event_regex = Regex::new(r"(?m)^\*{3} (?P<state>[A-Z]{3,4})? ?\[?#?(?P<priority>\d*)?]? ?(?P<name>.*)\n:PROPERTIES:\n:STYLE: (?P<style>[A-z]+)\n(?::[A-Z]*: .*\n)*:END:\n:DESCRIPTION:\n(?P<description>^[^:]*\n*):END:\n:NOTES:\n(?P<notes>^[^:]*\n*):END:").unwrap();
+		let mut event_vector = Vec::new();
+
+		for event in event_regex.captures_iter(&file_content) {
+			event_vector.push(Event::from_str(event.get(0).unwrap().as_str()).unwrap())
+		}
+
+		let forcast: Option<String>;
+		let notes: Option<String>;
+		let records: Option<String>;
+		if file_capture["Forcast"].is_empty(){
+			forcast = None;
+		} else {
+			forcast = Some(file_capture["Forcast"].to_string());
+		}
+		if file_capture["Records"].is_empty(){
+			records = None;
+		} else {
+			records = Some(file_capture["Records"].to_string());
+		}
+		if file_capture["Notes"].is_empty(){
+			notes = None;
+		} else {
+			notes = Some(file_capture["Notes"].to_string());
+		}
+
+
+		RorgFile{
+			file_type:FileType::Year,
+			title: file_capture["Title"].to_string(),
+			forcast,
+			events:event_vector,
+			notes,
+			records,
+		}
+
+	}
+	fn to_file(file: RorgFile, path: &str) -> std::io::Result<u8>{
+		match file.file_type {
+			FileType::Year => {
+				let mut events = String::new();
+				for entry in file.events{
+					events = format!("{}\n{:#}",events,entry)
+				}
+				let file_content = format!("#+TITLE: {}\n* Forcast\n{}* Todo\n{}\n* Notes\n{}\n* Records\n{}",
+					file.title, file.forcast.unwrap(), events, file.notes.unwrap(), file.records.unwrap());
+
+				let mut file = File::create(path)?;
+				file.write_all(file_content.as_bytes());
+				Ok(0)
+
+			},
+			FileType::Month | FileType::Week | FileType::Basic | FileType::Habit | FileType::Appt => {
+				println!("exporting a {:?} to a file is not working yet",file.file_type);
+				Ok(1)
+			}
+		}
+	}
+	fn add_event(event: Event,mut file: RorgFile) -> RorgFile{
+		file.events.push(event);
+		return file
+	}
+}
+
+#[derive(Debug)]
 enum EventState{
 	TODO,
 
@@ -275,7 +373,7 @@ fn main() -> std::io::Result<()> {
 
 				} else {
 					if args.len() < 3{
-						println!("ERROR:\n You need to provide at least 3 parametter or none for --add.\n\
+						println!("ERROR:\n You need to provide 3 parameter or none for --add.\n\
 									Exemples:\n rorg --add\n rorg --add taskname task ./rorg/current/week/w00.org");
 						std::process::exit(-1);
 					}
@@ -406,46 +504,7 @@ fn file_generator(time: TimeRange,year: i32,date: u32) -> String {
             let mut month_day = Utc.ymd(year,date,1);
 
             file_title = format!("#+TITLE: ToDo {}-{}\n",month_day.format("%B"),year);
-
-            //generate the calendar
-            let header = "|----+----+----+----+----+----+----+----|\n\
-                          | WW | Mo | Tu | We | Th | Fr | Sa | Su |\n\
-                          |----+----+----+----+----+----+----+----|";
-            let footer = "|----+----+----+----+----+----+----+----|";
-            let mut cal_content: String = "".to_string();
-
-            cal_content = loop {
-
-                let week_nb = month_day.format("%W");
-                let mut weekday = format!("{}",month_day.format("%u")).parse::<usize>().unwrap();
-
-                let mut week_array: [String; 7] = ["  ".to_string(),"  ".to_string(),"  ".to_string(),
-                                                   "  ".to_string(),"  ".to_string(),"  ".to_string(),
-                                                   "  ".to_string()];
-
-                month_day = loop{
-                    /*
-                        take the weekday and place it at the right place in the week_array
-                        (Monday is 0 and sunday is 6)
-                    */
-                    week_array[weekday - 1] = month_day.format("%d").to_string();
-
-                    month_day = month_day + Duration::days(1);
-
-                    weekday += 1 ;
-                    if weekday > 7 || format!("{}",month_day.format("%m")).parse::<u32>().unwrap() != date {break month_day;}
-                };
-
-
-                let cal_line = format!("| {} | {} | {} | {} | {} | {} | {} | {} |\n",
-                                        week_nb,week_array[0],week_array[1],week_array[2],
-                                        week_array[3],week_array[4],week_array[5],week_array[6]);
-
-                cal_content = format!("{}{}",cal_content,cal_line);
-
-                if format!("{}",month_day.format("%m")).parse::<u32>().unwrap() != date {break cal_content;}
-            };
-            begin_content = format!("{}\n{}{}\n\n* Forcast\n\n",header,cal_content,footer);
+			begin_content = format!("* Forcast\n");
         },
         TimeRange::Week =>{
             file_title = format!("#+TITLE: ToDo {}-W{}\n",year,date);
