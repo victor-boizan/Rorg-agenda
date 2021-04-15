@@ -47,9 +47,9 @@ impl RorgFile{
 	fn from_file(path: &str) -> RorgFile {
 
 		/*Open the file and get it's content*/
-		let mut file = File::open(path).expect("OPEN error in function file_extractor");
+		let mut file = File::open(path).expect("OPEN error in function from_file");
 		let mut file_content = String::new();
-		file.read_to_string(&mut file_content).expect("READ error in function file_extractor");
+		file.read_to_string(&mut file_content).expect("READ error in function from_file");
 		drop(file);
 
 		let file_regex = Regex::new(r"(?m)#\+TITLE: (?P<Title>.*)\n*(?:\* Forcast\n)?(?P<Forcast>^[^\*]*\n*)?\*(?:.*\n)+?\* Notes\n(?P<Notes>^[^\*]*\n*)\n\* Records\n(?P<Records>^[^\*]*\n*)").unwrap();
@@ -97,10 +97,27 @@ impl RorgFile{
 			FileType::Year | FileType::Month => {
 				let mut events = String::new();
 				for entry in self.events{
-					events = format!("{}\n{:#}",events,entry)
+					events = format!("{}\n\n{:#}",events,entry)
 				}
-				let file_content = format!("#+TITLE: {}\n* Forcast\n{}* Todo\n{}\n* Notes\n{}\n* Records\n{}",
-					self.title, self.forcast.unwrap(), events, self.notes.unwrap(), self.records.unwrap());
+
+				let forcast: String;
+				let notes: String;
+				let records: String;
+				match self.forcast{
+					Some(value) => forcast = value,
+					None        => forcast = "".to_string()
+				}
+				match self.notes{
+					Some(value) => notes = value,
+					None        => notes = "".to_string()
+				}
+				match self.records{
+					Some(value) => records = value,
+					None        => records = "".to_string()
+				}
+
+				let file_content = format!("#+TITLE: {}\n* Forcast\n{}* Todo\n{}\n\n* Notes\n{}\n* Records\n{}",
+					self.title, forcast, events, notes, records);
 
 				let mut file = File::create(path)?;
 				file.write_all(file_content.as_bytes());
@@ -193,11 +210,11 @@ impl EventStyle{
 impl FromStr for EventStyle {
 	type Err = ();
 	fn from_str(input: &str) -> Result<EventStyle, ()> {
-		match input {
-			"Task"  =>Ok(EventStyle::Task),
-			"Habit"  => Ok(EventStyle::Habit),
-			"Appt" => Ok(EventStyle::Appt),
-			"Basic"  => Ok(EventStyle::Basic),
+		match input.to_lowercase().as_str() {
+			"task"  =>Ok(EventStyle::Task),
+			"habit"  => Ok(EventStyle::Habit),
+			"appt" => Ok(EventStyle::Appt),
+			"basic"  => Ok(EventStyle::Basic),
 			_ => Err(()),
 		}
 	}
@@ -224,23 +241,6 @@ impl Event {
 			logs: String::new(),
 			notes: String::new()
 		}
-	}
-	fn event_extractor(path: &str) -> Vec<Event> {
-
-		let mut file = File::open(path).expect("OPEN error in function file_extractor");
-		let mut file_content = String::new();
-		file.read_to_string(&mut file_content).expect("READ error in function file_extractor");
-		drop(file);
-
-		//this regex match all events types
-		let event_regex = Regex::new(r"(?m)^\*{3} (?P<state>[A-Z]{3,4})? ?\[?#?(?P<priority>\d*)?]? ?(?P<name>.*)\n:PROPERTIES:\n:STYLE: (?P<style>[A-z]+)\n(?::[A-Z]*: .*\n)*:END:\n:DESCRIPTION:\n(?P<description>^[^:]*\n*):END:\n:NOTES:\n(?P<notes>^[^:]*\n*):END:").unwrap();
-		let mut event_vector = Vec::new();
-
-		for event in event_regex.captures_iter(&file_content) {
-			event_vector.push(Event::from_str(event.get(0).unwrap().as_str()).unwrap())
-		}
-
-		return event_vector;
 	}
 }
 impl fmt::Display for Event {
@@ -336,23 +336,20 @@ fn main() -> std::io::Result<()> {
 	let mut current_argument = 0;
 
 	while args.len() >= 1 {
+		/* Code for testing purpose */
 		println!("{}. ----------------------",current_argument);
 		let argument = args.nth(0).unwrap();
-		println!("argument nb{}/{} : {}\n",current_argument+1,last_argument+1,argument);
-		match argument.as_str(){
-			"--init" => {
-				println!("{:?}",dir_init());
-			},
-			"--read" => {
-				let events = Event::event_extractor(args.nth(0).unwrap().as_str());
-				for entry in events{
-					println!("{}",entry);
-				}
+		println!("argument nb{}/{} : {}\nargs.len() = {}\n",last_argument - args.len(),last_argument,argument,args.len());
+		/* ^^^ Code for testing purpose*/
 
+		match argument.as_str(){
+			"--init" => {println!("{:?}",dir_init())},
+			"--read" => {
+				let file = RorgFile::from_file(args.nth(0).unwrap().as_str());
+				for entry in file.events{println!("{}",entry)}
 			}
 			"--add" => {
-				if current_argument == last_argument{
-
+				if args.len() == 0 {
 					println!("What is the name of the entry?");
 					let mut name = String::new();
 					match io::stdin().read_line(&mut name){
@@ -399,24 +396,15 @@ fn main() -> std::io::Result<()> {
 									Exemples:\n rorg --add\n rorg --add taskname task ./rorg/current/week/w00.org");
 						std::process::exit(-1);
 					}
-					current_argument += 1;
+
 					let name = args.nth(0).unwrap();
-					current_argument += 1;
-
-					/*I assign a value here beaucause it let me modify it later in the match below*/
-					let mut style = EventStyle::Basic;
-
-					let style_arg = args.nth(0).unwrap();
-					match style_arg.to_lowercase().as_str(){
-						"task"  => style = EventStyle::Task,
-						"habit" => style = EventStyle::Habit,
-						"appt"  => style = EventStyle::Appt,
-						"basic" => style = EventStyle::Basic,
-						&_ => println!("{} is not a valid value.\nValide values are TODO, HABIT, APPT, BASE",style_arg)
-					}
-					let event=Event::new(style, name);
+					let style = EventStyle::from_str(args.nth(0).unwrap().as_str());
+					let event=Event::new(style.unwrap(), name);
 					let path = args.nth(0).unwrap();
-					event_add(event, path)
+
+					let mut file = RorgFile::from_file(path.as_str());
+					file.add_event(event);
+					file.to_file(path.as_str());
 
 				}
 			}
