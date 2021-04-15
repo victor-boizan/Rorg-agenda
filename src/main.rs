@@ -242,6 +242,52 @@ impl Event {
 			notes: String::new()
 		}
 	}
+	/* when use with RorgFile::add_event, Could not evaluate DW_OP_GNU_entry_value
+
+		fn new_from_cli() -> Event {
+		println!("What is the name of the entry?");
+		let mut name = String::new();
+		match io::stdin().read_line(&mut name){
+			Ok(_) => {
+				name.pop();
+				println!("You will create an event named {}",name);
+			},
+			Err(e) => println!("error: {}",e)
+		}
+
+		let mut style = String::new();
+		println!("What style of entry \"{}\" is?\n1.Task\n2.Habit\n3.appointment\n4.Basic event\n",name);
+		match io::stdin().read_line(&mut style){
+			Ok(_) => {
+				style.pop();
+				style = style.to_lowercase();
+				match style.as_str(){
+				/*  nb | letter | name | alt*/
+					"1" | "t" | "task" | "todo"=> {
+						return Event::new(EventStyle::Task,name)
+					},
+					"2" | "h" | "habit" => {
+						return Event::new(EventStyle::Habit,name)
+					},
+					"3" | "a" | "appointment" | "appt" => {
+						return Event::new(EventStyle::Appt,name)
+					},
+					"4" | "b" | "basic" | "" => {
+						Event::new(EventStyle::Basic,name)
+					},
+					_ => {
+						println!("{} is no a valid input.",style);
+						std::process::exit(-1);
+
+					}
+				}
+			},
+			Err(e) => {
+				println!("error: {}",e);
+				std::process::exit(-1);
+			}
+		}
+	}*/
 }
 impl fmt::Display for Event {
 	fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -333,11 +379,10 @@ fn main() -> std::io::Result<()> {
 	let mut args = std::env::args();
 	println!("{:?}\n{} arguments",args,args.len());
 	let last_argument = args.len()-1;
-	let mut current_argument = 0;
 
 	while args.len() >= 1 {
 		/* Code for testing purpose */
-		println!("{}. ----------------------",current_argument);
+		println!("{}. ----------------------",last_argument - args.len());
 		let argument = args.nth(0).unwrap();
 		println!("argument nb{}/{} : {}\nargs.len() = {}\n",last_argument - args.len(),last_argument,argument,args.len());
 		/* ^^^ Code for testing purpose*/
@@ -350,50 +395,21 @@ fn main() -> std::io::Result<()> {
 			}
 			"--add" => {
 				if args.len() == 0 {
-					println!("What is the name of the entry?");
-					let mut name = String::new();
-					match io::stdin().read_line(&mut name){
-						Ok(_) => {
-							name.pop();
-							println!("You will create an event named {}",name);
-						},
-						Err(e) => println!("error: {}",e)
-					}
+					/* Does not work beacause : Could not evaluate DW_OP_GNU_entry_value.
+					   and idk how to fix it
 
-					let mut style = String::new();
-					println!("What style of entry \"{}\" is?\n1.Task\n2.Habit\n3.appointment\n4.Basic event\n",name);
-					match io::stdin().read_line(&mut style){
-						Ok(_) => {
-							style.pop();
-							style = style.to_lowercase();
-							match style.as_str(){
-							/*  nb | letter | name | alt*/
-								"1" | "t" | "task" | "todo"=> {
-									let event = Event::new(EventStyle::Task,name);
-									println!("{}",event);
-								},
-								"2" | "h" | "habit" => {
-									let event = Event::new(EventStyle::Habit,name);
-									println!("{}",event);
-								},
-								"3" | "a" | "appointment" | "appt" => {
-									let event = Event::new(EventStyle::Appt,name);
-									println!("{}",event);
-								},
-								"4" | "b" | "basic" | "" => {
-									let event = Event::new(EventStyle::Basic,name);
-									println!("{}",event);
-								},
-								_ => println!("{} is no a valid input.",style)
-							}
-						},
-						Err(e) => println!("error: {}",e)
-					}
+					let event = Event::new_from_cli();
+					println!("{}",event);
+					let mut file = RorgFile::from_file("./rorg/current/2021.org");
+					file.add_event(event);
+					file.to_file(".rorg/current/2021.org");
+					*/
+					println!("Sorry but --add does not work alone for now\nYou need to provide 3 parameter\nExemple:\n rorg --add taskname task ./rorg/current/week/w00.org")
 
 				} else {
 					if args.len() < 3{
-						println!("ERROR:\n You need to provide 3 parameter or none for --add.\n\
-									Exemples:\n rorg --add\n rorg --add taskname task ./rorg/current/week/w00.org");
+						println!("ERROR:\n You need to provide 3 parameter for --add.\n\
+									Exemple:\n rorg --add taskname task ./rorg/current/week/w00.org");
 						std::process::exit(-1);
 					}
 
@@ -408,25 +424,8 @@ fn main() -> std::io::Result<()> {
 
 				}
 			}
-			"--remove" => {
-				if current_argument == last_argument{
-					println!("can't remove anything for now");
-				} else {
-					current_argument += 1;
-					let next_argument = args.nth(0).unwrap();
-					match next_argument.as_str(){
-						"TODO" => println!("it look like you want to remove a TODO entry"),
-						"HABIT" => println!("it look like you want to remove an habit entry"),
-						"APPT" => println!("it look like you want to remobe a appointments entry"),
-						"BASE" => println!("it look like you want to remove a basic event entry"),
-						&_ => println!("{} is not a valid value.\nValide values are TODO, HABIT, APPT, BASE",next_argument)
-					}
-
-				}
-			}
 			&_ => {println!("no clue of what to do with \"{}\"",argument)}
 		}
-		current_argument += 1;
 	}
 
 	Ok(())
