@@ -92,30 +92,52 @@ impl RorgFile{
 		}
 
 	}
-	fn to_file(file: RorgFile, path: &str) -> std::io::Result<u8>{
-		match file.file_type {
-			FileType::Year => {
+	pub fn to_file(self, path: &str) -> std::io::Result<u8>{
+		match self.file_type {
+			FileType::Year | FileType::Month => {
 				let mut events = String::new();
-				for entry in file.events{
+				for entry in self.events{
 					events = format!("{}\n{:#}",events,entry)
 				}
 				let file_content = format!("#+TITLE: {}\n* Forcast\n{}* Todo\n{}\n* Notes\n{}\n* Records\n{}",
-					file.title, file.forcast.unwrap(), events, file.notes.unwrap(), file.records.unwrap());
+					self.title, self.forcast.unwrap(), events, self.notes.unwrap(), self.records.unwrap());
 
 				let mut file = File::create(path)?;
 				file.write_all(file_content.as_bytes());
 				Ok(0)
 
 			},
-			FileType::Month | FileType::Week | FileType::Basic | FileType::Habit | FileType::Appt => {
-				println!("exporting a {:?} to a file is not working yet",file.file_type);
-				Ok(1)
+			FileType::Week => {
+				let mut events = String::new();
+				for entry in self.events{
+					events = format!("{}\n{:#}",events,entry)
+				}
+				let file_content = format!("#+TITLE: {}\n* Todo\n{}\n* Notes\n{}\n* Records\n{}",
+					self.title, events, self.notes.unwrap(), self.records.unwrap());
+
+				let mut file = File::create(path)?;
+				file.write_all(file_content.as_bytes());
+				Ok(0)
+
+			},
+			FileType::Basic | FileType::Habit | FileType::Appt => {
+
+				let mut events = String::new();
+				for entry in self.events{
+					events = format!("{}\n{:#}",events,entry)
+				}
+				let file_content = format!("#+TITLE: {}\n{}",
+					self.title, events);
+
+				let mut file = File::create(path)?;
+				file.write_all(file_content.as_bytes());
+				Ok(0)
+
 			}
 		}
 	}
-	fn add_event(event: Event,mut file: RorgFile) -> RorgFile{
-		file.events.push(event);
-		return file
+	pub fn add_event(&mut self, event: Event) {
+		self.events.push(event);
 	}
 }
 
