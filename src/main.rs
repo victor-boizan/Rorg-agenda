@@ -15,6 +15,8 @@ use regex::Regex;
 use chrono::{DateTime, Date, Datelike, Utc, TimeZone, Duration};
 
 /* Types declaration and implementation */
+
+
 enum TimeRange{
 	Year,
 	Month,
@@ -37,6 +39,7 @@ enum FileType{
 #[derive(Debug)]
 struct RorgFile{
 	file_type: FileType,
+	date:      Option<Date<Utc>>,
 	title:     String,
 	forcast:   Option<String>,
 	events:    Vec<Event>,
@@ -82,9 +85,9 @@ impl RorgFile{
 			notes = Some(file_capture["Notes"].to_string());
 		}
 
-
 		RorgFile{
 			file_type:FileType::Year,
+			date: date_from_path(path),
 			title: file_capture["Title"].to_string(),
 			forcast,
 			events:event_vector,
@@ -173,22 +176,17 @@ enum EventState{
 	Null,
 }
 impl FromStr for EventState {
-    type Err = ();
-    fn from_str(input: &str) -> Result<EventState, ()> {
-        match input {
-            "TODO"  =>Ok(EventState::TODO),
-
-            "WIP"  => Ok(EventState::WIP),
-
-            "FAILED" => Ok(EventState::FAILED),
-            "REPORT"  => Ok(EventState::REPORT),
-
-            "DONE" => Ok(EventState::DONE),
-
-            _ => Ok(EventState::Null),
-
-        }
-    }
+	type Err = ();
+	fn from_str(input: &str) -> Result<EventState, ()> {
+		match input.to_lowercase().as_str() {
+			"todo"  =>Ok(EventState::TODO),
+			"wip"  => Ok(EventState::WIP),
+			"failed" => Ok(EventState::FAILED),
+			"report"  => Ok(EventState::REPORT),
+			"done" => Ok(EventState::DONE),
+			_ => Ok(EventState::Null),
+		}
+	}
 }
 
 #[derive(Debug)]
@@ -435,7 +433,6 @@ fn main() -> std::io::Result<()> {
 
 /* Functions */
 
-
 /*Create the rorg folder and subfolders*/
 fn dir_init() -> std::io::Result<u8> {
 
@@ -451,7 +448,7 @@ fn path_generator(file_type: FileType, date: Option<Date<Utc>>) -> Result<String
 		FileType::Year | FileType::Week | FileType::Month=> {
 			match date {
 				Some(_) => {},
-				None        => return Err(()),
+				None    => return Err(()),
 			}
 		}
 		_ =>{},
@@ -460,9 +457,9 @@ fn path_generator(file_type: FileType, date: Option<Date<Utc>>) -> Result<String
 		match file_type {
 			FileType::Year  => {
 				if date.unwrap().year() == Utc::today().year() {
-					format!("./rorg/current/{}.org"       , date.unwrap().iso_week().year())
+					format!("./rorg/current/{}.org", date.unwrap().iso_week().year())
 				} else {
-					format!("./rorg/next_years/{}.org"       , date.unwrap().iso_week().year())
+					format!("./rorg/next_years/{}.org", date.unwrap().iso_week().year())
 				}
 			},
 			FileType::Month => {format!("./rorg/current/months/{}.org", date.unwrap().format("%m-%B"))/*%m-> month number, %B -> month name*/},
@@ -475,51 +472,26 @@ fn path_generator(file_type: FileType, date: Option<Date<Utc>>) -> Result<String
 		}
 	)
 }
-fn file_generator(time: TimeRange,year: i32,date: u32) -> String {
 
-    let file_title: String;
-    let begin_content: String;
+fn date_from_path(path: &str) -> Option<Date<Utc>>{
+	let path_regex = Regex::new(r"\./rorg/(?P<lvl1>[^/\n]*)/?(?P<lvl2>[^/\n]*)?/?(?P<lvl3>[^/\n]+?)?(?P<nb>\d{2})?(?:[^\d\n]*)(?:\.org)$").unwrap();
+	let path_capture = path_regex.captures(path).unwrap();
 
-    match time {
-        TimeRange::Year => {
-            file_title = format!("#+TITLE: ToDo in {}\n",year);
-            begin_content = String::from("* Forcast\n");
-        },
-        TimeRange::Month => {
-
-            let mut month_day = Utc.ymd(year,date,1);
-
-            file_title = format!("#+TITLE: ToDo {}-{}\n",month_day.format("%B"),year);
-			begin_content = format!("* Forcast\n");
-        },
-        TimeRange::Week =>{
-            file_title = format!("#+TITLE: ToDo {}-W{}\n",year,date);
-            begin_content = String::from("");
-        }
-    }
-    let generic_content = "* ToDos\n\n\
-                            ** In Progress\n\n\
-                            ** To be done\n\n\
-                            ** Done\n\n\n\
-                            * Notes\n\n\
-                            * Records\n";
-
-    format!("{}{}{}",file_title,begin_content,generic_content)
-
+	if path_capture["lvl1"].to_string() == "current".to_string(){
+			match path_capture.name("lvl3"){
+				Some(_) => {
+					if &path_capture["lvl3"] == "w" {
+						Some(Utc.isoywd(Utc::today().year(), path_capture["nb"].parse().unwrap(), chrono::Weekday::Mon))
+					} else {
+						Some(Utc.ymd(Utc::today().year(), path_capture["lvl3"].parse().unwrap(), 1))
+					}
+				}
+				None  => Some(Utc.yo(path_capture["lvl2"].parse().unwrap(), 1)),
+			}
+	} else {
+		None
+	}
 }
-fn event_add(event: Event, path: String){
-	/*open and read the file*/
-	let mut file = File::open(&path).expect("OPEN error in function event_add");
-	let mut file_content = String::new();
-	file.read_to_string(&mut file_content).expect("READ error in function event_add");
-	drop(file);
-	/*concatenate file content and the event*/
-	file_content = format!("{}\n{:#}",file_content,event);
-	/*rewrite the file*/
-	let mut new_file = File::create(&path).unwrap();
-	new_file.write_all(file_content.as_bytes());
-}
-
 
 /*Tests*/
 #[cfg(test)]
