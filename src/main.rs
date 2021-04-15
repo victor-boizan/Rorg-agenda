@@ -12,7 +12,7 @@ use std::str::FromStr;
 /* External crates */
 use regex::Regex;
 
-use chrono::{DateTime, Utc, TimeZone, Duration};
+use chrono::{DateTime, Date, Datelike, Utc, TimeZone, Duration};
 
 /* Types declaration and implementation */
 enum TimeRange{
@@ -22,6 +22,7 @@ enum TimeRange{
 }
 
 #[derive(Debug)]
+#[derive(PartialEq)]
 enum FileType{
 	/*Task files*/
 	Year,
@@ -433,70 +434,46 @@ fn main() -> std::io::Result<()> {
 }
 
 /* Functions */
+
+
+/*Create the rorg folder and subfolders*/
 fn dir_init() -> std::io::Result<u8> {
 
-    /*Create the folders*/
-    fs::create_dir_all("./rorg/current/months")?;
-    fs::create_dir_all("./rorg/current/weeks")?;
-    fs::create_dir_all("./rorg/next-years")?;
-    fs::create_dir_all("./rorg/.achives")?;
+	fs::create_dir_all("./rorg/current/months")?;
+	fs::create_dir_all("./rorg/current/weeks")?;
+	fs::create_dir_all("./rorg/next_years")?;
+	fs::create_dir_all("./rorg/.achives")?;
 
-    /*Create the files*/
-    let current_folder = "./rorg/current/";
+	Ok(0)
+}
+fn path_generator(file_type: FileType, date: Option<Date<Utc>>) -> Result<String,()> {
+	match file_type {
+		FileType::Year | FileType::Week | FileType::Month=> {
+			match date {
+				Some(_) => {},
+				None        => return Err(()),
+			}
+		}
+		_ =>{},
+	}
+	Ok(
+		match file_type {
+			FileType::Year  => {
+				if date.unwrap().year() == Utc::today().year() {
+					format!("./rorg/current/{}.org"       , date.unwrap().iso_week().year())
+				} else {
+					format!("./rorg/next_years/{}.org"       , date.unwrap().iso_week().year())
+				}
+			},
+			FileType::Month => {format!("./rorg/current/months/{}.org", date.unwrap().format("%m-%B"))/*%m-> month number, %B -> month name*/},
+			FileType::Week  => {format!("./rorg/current/weeks/w{}.org", date.unwrap().iso_week().week())},
 
-	/*get the year,month and week and store them in u32 and i32 for the year*/
-    let now: DateTime<Utc> = Utc::now();
+			FileType::Basic => String::from("./rorg/events.org"),
+			FileType::Habit => String::from("./rorg/habits.org"),
+			FileType::Appt  => String::from("./rorg/appointments.org")
 
-    let year = format!("{}",now.format("%Y")).parse::<i32>().unwrap();
-    let month = format!("{}",now.format("%m")).parse::<u32>().unwrap();
-    let week = format!("{}",now.format("%W")).parse::<u32>().unwrap();
-
-	/*current year*/
-    let filename = format!("{}/{}.org",current_folder, now.format("%Y"));
-    let mut file = File::create(filename)?;
-    let content = file_generator(TimeRange::Year,year,0);
-    file.write_all(content.as_bytes())?;
-
-	/*weeks*/
-    for file_week in week..53{
-        let filename: String;
-        if file_week < 10{
-            filename = format!("{}weeks/w0{}.org",current_folder,file_week);
-        }else{
-            filename = format!("{}weeks/w{}.org",current_folder,file_week);
-        }
-        let mut file = File::create(filename)?;
-        let content = file_generator(TimeRange::Week,year,file_week);
-        file.write_all(content.as_bytes())?;
-    }
-
-	/*month*/
-    for file_month in month..13{
-
-        let work_month = Utc.ymd(year, file_month, 1);
-        let filename = format!("{}months/{}.org",current_folder,work_month.format("%m-%B"));
-        let mut file = File::create(filename)?;
-        let content = file_generator(TimeRange::Month,year,file_month);
-        file.write_all(content.as_bytes())?;
-    }
-
-	/*other files*/
-
-    let mut file = File::create("./rorg/habits.org")?;
-    let content = "#+TITLE: Habits";
-    file.write_all(content.as_bytes())?;
-
-    let mut file = File::create("./rorg/appointments.org")?;
-    let content = "#+TITLE: Appointments";
-    file.write_all(content.as_bytes())?;
-
-    let mut file = File::create("./rorg/special_times.org")?;
-    let content = "#+TITLE: Special times\n# I use this file for evey recurent events like birthdays";
-    file.write_all(content.as_bytes())?;
-
-	println!("directories initialised");
-
-    Ok(0)
+		}
+	)
 }
 fn file_generator(time: TimeRange,year: i32,date: u32) -> String {
 
@@ -541,4 +518,25 @@ fn event_add(event: Event, path: String){
 	/*rewrite the file*/
 	let mut new_file = File::create(&path).unwrap();
 	new_file.write_all(file_content.as_bytes());
+}
+
+
+/*Tests*/
+#[cfg(test)]
+mod test {
+	use super::*;
+
+	#[test]
+	fn path_test(){
+		let date = Utc.ymd(2021,04,15);
+
+		assert_eq!(Ok("./rorg/current/2021.org".to_string()),path_generator(FileType::Year, Some(date)));
+		assert_eq!(Ok("./rorg/current/months/04-April.org".to_string()),path_generator(FileType::Month, Some(date)));
+		assert_eq!(Ok("./rorg/current/weeks/w15.org".to_string()),path_generator(FileType::Week, Some(date)));
+		assert_eq!(Err(()),path_generator(FileType::Year, None));
+		assert_eq!(Ok("./rorg/events.org".to_string()),path_generator(FileType::Basic, Some(date)));
+		assert_eq!(Ok("./rorg/events.org".to_string()),path_generator(FileType::Basic, None));
+		assert_eq!(Ok("./rorg/habits.org".to_string()),path_generator(FileType::Habit, None));
+		assert_eq!(Ok("./rorg/appointments.org".to_string()),path_generator(FileType::Appt, None));
+	}
 }
