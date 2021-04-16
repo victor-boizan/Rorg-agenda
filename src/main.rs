@@ -225,6 +225,40 @@ struct TimeStamp{
 	delay: Option<Duration>,
 	frequency: Option<Duration>
 }
+impl fmt::Display for TimeStamp {
+	fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+		if formatter.alternate() {
+
+			let date = self.date.format("%Y-%m-%d %a");
+			let time: String;
+			match self.time{
+				Some(_) => time = self.time.unwrap().format(" %R").to_string(),
+				None        => time = String::new()
+			}
+			let duration: String;
+			match self.duration{
+				Some(_) => {
+					let x = self.time.unwrap() + self.duration.unwrap();
+					duration = x.format("-%R").to_string();
+			},
+				None        => duration = String::new()
+			}
+			let delay: String;
+			match self.delay{
+				Some(_) => delay = format!(" -{}d",self.delay.unwrap().num_days().to_string()),
+				None        => delay = String::new()
+			}
+			let frequency: String;
+			match self.frequency{
+				Some(_) => frequency = format!(" +{}d",self.frequency.unwrap().num_days().to_string()),
+				None        => frequency = String::new(),
+			}
+			write!(formatter,"<{}{}{}{}{}>",date,time,duration,delay,frequency)
+		} else {
+			Ok(())
+		}
+	}
+}
 
 #[derive(Debug)]
 struct Event{
@@ -381,17 +415,12 @@ impl FromStr for Event {
 
 /* Main */
 fn main() -> std::io::Result<()> {
-
+	println!("{:#}\n\n",TimeStamp{date: NaiveDate::from_ymd(2021,04,16), time: Some(NaiveTime::from_hms(14,15,0)),duration: Some(Duration::minutes(5)),delay: Some(Duration::days(5)), frequency: Some(Duration::days(5))});
 	let mut args = std::env::args();
-	println!("{:?}\n{} arguments",args,args.len());
-	let last_argument = args.len()-1;
 
 	while args.len() >= 1 {
-		/* Code for testing purpose */
-		println!("{}. ----------------------",last_argument - args.len());
+
 		let argument = args.nth(0).unwrap();
-		println!("argument nb{}/{} : {}\nargs.len() = {}\n",last_argument - args.len(),last_argument,argument,args.len());
-		/* ^^^ Code for testing purpose*/
 
 		match argument.as_str(){
 			"--init" => {println!("{:?}",dir_init())},
@@ -517,5 +546,15 @@ mod test {
 		assert_eq!(Ok("./rorg/events.org".to_string()),path_generator(FileType::Basic, None));
 		assert_eq!(Ok("./rorg/habits.org".to_string()),path_generator(FileType::Habit, None));
 		assert_eq!(Ok("./rorg/appointments.org".to_string()),path_generator(FileType::Appt, None));
+	}
+	#[test]
+	fn timeStamp_test(){
+		let stamp =TimeStamp{
+			date: NaiveDate::from_ymd(2003,09,16),
+			time: Some(NaiveTime::from_hms(9,39,0)),
+			duration: Some(Duration::minutes(171)),
+			delay: Some(Duration::days(2)),
+			frequency: Some(Duration::days(5))
+		};
 	}
 }
