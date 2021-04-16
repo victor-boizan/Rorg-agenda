@@ -13,6 +13,7 @@ use std::str::FromStr;
 use regex::Regex;
 
 use chrono::{DateTime, Date, Datelike, Utc, TimeZone, Duration};
+use chrono::naive::{NaiveDate,NaiveTime};
 
 /* Types declaration and implementation */
 
@@ -46,7 +47,6 @@ struct RorgFile{
 	notes:     Option<String>,
 	records:   Option<String>
 }
-
 impl RorgFile{
 	fn from_file(path: &str) -> RorgFile {
 
@@ -217,6 +217,13 @@ impl FromStr for EventStyle {
 			_ => Err(()),
 		}
 	}
+}
+struct TimeStamp{
+	date: NaiveDate,
+	time: Option<NaiveTime>,
+	duration: Option<Duration>,
+	delay: Option<Duration>,
+	frequency: Option<Duration>
 }
 
 #[derive(Debug)]
