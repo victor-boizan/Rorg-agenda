@@ -171,9 +171,7 @@ enum EventState{
 	FAILED,
 	REPORT,
 
-	DONE,
-
-	Null,
+	DONE
 }
 impl FromStr for EventState {
 	type Err = ();
@@ -184,7 +182,7 @@ impl FromStr for EventState {
 			"failed" => Ok(EventState::FAILED),
 			"report"  => Ok(EventState::REPORT),
 			"done" => Ok(EventState::DONE),
-			_ => Ok(EventState::Null),
+			_ => Err(()),
 		}
 	}
 }
@@ -197,12 +195,12 @@ enum EventStyle{
 	Task,
 }
 impl EventStyle{
-	fn defaultstate(&self) -> EventState {
+	fn defaultstate(&self) -> Option<EventState> {
 		match self {
-			EventStyle::Task => EventState::TODO,
-			EventStyle::Habit => EventState::TODO,
-			EventStyle::Appt => EventState::TODO,
-			EventStyle::Basic => EventState::Null,
+			EventStyle::Task => Some(EventState::TODO),
+			EventStyle::Habit => Some(EventState::TODO),
+			EventStyle::Appt => Some(EventState::TODO),
+			EventStyle::Basic => None,
 		}
 	}
 }
@@ -218,6 +216,8 @@ impl FromStr for EventStyle {
 		}
 	}
 }
+
+#[derive(Debug)]
 struct TimeStamp{
 	date: NaiveDate,
 	time: Option<NaiveTime>,
@@ -227,59 +227,58 @@ struct TimeStamp{
 }
 impl fmt::Display for TimeStamp {
 	fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-		if formatter.alternate() {
-
-			let date = self.date.format("%Y-%m-%d %a");
-			let time: String;
-			match self.time{
-				Some(_) => time = self.time.unwrap().format(" %R").to_string(),
-				None        => time = String::new()
-			}
-			let duration: String;
-			match self.duration{
-				Some(_) => {
-					let x = self.time.unwrap() + self.duration.unwrap();
-					duration = x.format("-%R").to_string();
-			},
-				None        => duration = String::new()
-			}
-			let delay: String;
-			match self.delay{
-				Some(_) => delay = format!(" -{}d",self.delay.unwrap().num_days().to_string()),
-				None        => delay = String::new()
-			}
-			let frequency: String;
-			match self.frequency{
-				Some(_) => frequency = format!(" +{}d",self.frequency.unwrap().num_days().to_string()),
-				None        => frequency = String::new(),
-			}
-			write!(formatter,"<{}{}{}{}{}>",date,time,duration,delay,frequency)
-		} else {
-			Ok(())
+		let date = self.date.format("%Y-%m-%d %a");
+		let time: String;
+		match self.time{
+			Some(_) => time = self.time.unwrap().format(" %R").to_string(),
+			None        => time = String::new()
 		}
+		let duration: String;
+		match self.duration{
+			Some(_) => {
+				let x = self.time.unwrap() + self.duration.unwrap();
+				duration = x.format("-%R").to_string();
+		},
+			None        => duration = String::new()
+		}
+		let delay: String;
+		match self.delay{
+			Some(_) => delay = format!(" -{}d",self.delay.unwrap().num_days().to_string()),
+			None        => delay = String::new()
+		}
+		let frequency: String;
+		match self.frequency{
+			Some(_) => frequency = format!(" +{}d",self.frequency.unwrap().num_days().to_string()),
+			None        => frequency = String::new(),
+		}
+		write!(formatter,"<{}{}{}{}{}>",date,time,duration,delay,frequency)
 	}
 }
 
 #[derive(Debug)]
 struct Event{
 	name: String,
-	state: EventState,
+	state: Option<EventState>,
+	schedule: Option<TimeStamp>,
+	deadline: Option<TimeStamp>,
 	style: EventStyle,
-	priority: u8,
-	description: String,
-	logs: String,
-	notes: String
+	priority: Option<u8>,
+	description: Option<String>,
+	logs: Option<String>,
+	notes: Option<String>
 }
 impl Event {
 	fn new(style: EventStyle,name: String) -> Event {
 		Event{
 			name,
 			state: style.defaultstate(),
+			schedule: None,
+			deadline: None,
 			style,
-			priority: 0,
-			description: String::new(),
-			logs: String::new(),
-			notes: String::new()
+			priority: None,
+			description: None,
+			logs: None,
+			notes: None
 		}
 	}
 	/* when use with RorgFile::add_event, Could not evaluate DW_OP_GNU_entry_value
@@ -331,60 +330,48 @@ impl Event {
 }
 impl fmt::Display for Event {
 	fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+		let state:String ;
+		let schedule: String;
+		let deadline: String;
+		let priority: String;
+		let description: String;
+		let logs: String;
+		let notes: String;
+
+		match &self.state{
+			Some(value) => state = format!{"{:?} ",value},
+			None    => state = String::new(),
+		}
+		match &self.schedule{
+			Some(value) => schedule = format!("SCHEDULE: {:#}\n",value),
+			None    => schedule = String::new(),
+		}
+		match &self.deadline{
+			Some(value) => deadline = format!("DEADLINE: {:#}\n",value),
+			None    => deadline = String::new(),
+		}
+		match &self.priority{
+			Some(value) => priority = format!("[#{:?}] ",value),
+			None    => priority = String::new(),
+		}
+		match &self.description{
+			Some(value) => description = format!(":DESCRIPTION:\n{}\n:END:\n",value),
+			None    => description = String::new(),
+		}
+		match &self.logs{
+			Some(value) => logs = format!(":LOGBOOK:\n{}\n:END:\n",value),
+			None    => logs = String::new(),
+		}
+		match &self.notes{
+			Some(value) => notes = format!(":NOTES:\n{}\n:END:\n",value),
+			None    => notes = String::new(),
+		}
+
 		if formatter.alternate() {
-			match self.style {
-				EventStyle::Appt  => {
-					write!(formatter, "*** {:?} {}\
-						\n:PROPERTIES:\n:STYLE: Appt\n:END:\
-						\n:DESCRIPTION:\n{}\n:END:\
-						\n:NOTES:\n{}\n:END:",
-						self.state, self.name, self.description, self.notes
-					)
-				},
-				EventStyle::Basic => {
-					write!(formatter, "*** {}\
-						\n:PROPERTIES:\n:STYLE: Basic\n:END:\
-						\n:DESCRIPTION:\n{}\n:END:\
-						\n:NOTES:\n{}\n:END:",
-						self.name, self.description, self.notes
-					)
-				}
-				EventStyle::Habit => {
-					write!(formatter, "*** {:?} {}\
-						\n:PROPERTIES:\n:STYLE: Habit\n:END:\
-						\n:DESCRIPTION:\n{}\n:END:\
-						\n:NOTES:\n{}\n:END:",
-						self.state, self.name, self.description, self.notes
-					)
-				},
-				EventStyle::Task  => {
-					write!(formatter, "*** {:?} [#{:?}] {}\
-						\n:PROPERTIES:\n:STYLE: Task\n:END:\
-						\n:DESCRIPTION:\n{}\n:END:\
-						\n:NOTES:\n{}\n:END:",
-						self.state, self.priority, self.name, self.description, self.notes
-					)
-				},
-			}
+			write!(formatter,"*** {}{}{}\n{}{}:PROPERTIES:\nSTYLE: {:?}\n:END:\n{}{}{}",
+				state,priority,self.name,schedule,deadline,self.style,description,notes,logs)
 		} else {
-			match self.style {
-				EventStyle::Appt  =>{
-					write!(formatter, "{:?} {}\nDescription:\n{}Notes:\n{}",
-						self.state, self.name, self.description, self.notes)
-				},
-				EventStyle::Basic =>{
-					write!(formatter, "{}\nDescription:\n{}Notes:\n{}",
-						self.name, self.description, self.notes)
-				},
-				EventStyle::Habit =>{
-					write!(formatter, "{:?} {}\nDescription:\n{}Notes:\n{}",
-						self.state, self.name, self.description, self.notes)
-				},
-				EventStyle::Task  =>{
-					write!(formatter, "[#{:?}] {:?} {}\nDescription:\n{}Notes:\n{}",
-						self.priority, self.state, self.name, self.description, self.notes)
-				},
-			}
+			Ok(())
 		}
 	}
 }
@@ -394,28 +381,30 @@ impl FromStr for Event {
 	fn from_str(input: &str) -> Result<Event, ()> {
 		let event_regex = Regex::new(r"(?m)^\*{3} (?P<state>[A-Z]{3,4})? ?\[?#?(?P<priority>\d*)?]? ?(?P<name>.*)\n:PROPERTIES:\n:STYLE: (?P<style>[A-z]+)\n(?::[A-Z]*: .*\n)*:END:\n:DESCRIPTION:\n(?P<description>^[^:]*\n*):END:\n:NOTES:\n(?P<notes>^[^:]*\n*):END:").unwrap();
 		let caps = event_regex.captures(input).unwrap();
-		let state: EventState;
+		let state: Option<EventState>;
 
 		match caps.name("state"){
-			Some(_) => {state = EventState::from_str(&caps["state"]).unwrap()},
-			_ => {state = EventState::Null}
+			Some(_) => {state = Some(EventState::from_str(&caps["state"]).unwrap())},
+			_ => {state = None}
 		}
 
 		Ok(Event{
 			name: caps["name"].to_string(),
+			schedule: None,
+			deadline: None,
 			state,
 			style: EventStyle::from_str(&caps["style"]).unwrap(),
-			priority: caps["priority"].parse::<u8>().unwrap_or(0),
-			description: caps["description"].to_string(),
-			logs: "".to_string() ,
-			notes: caps["notes"].to_string()
+			priority: Some(caps["priority"].parse::<u8>().unwrap_or(0)),
+			description: Some(caps["description"].to_string()),
+			logs: None ,
+			notes: Some(caps["notes"].to_string())
 		})
 	}
 }
 
 /* Main */
 fn main() -> std::io::Result<()> {
-	println!("{:#}\n\n",TimeStamp{date: NaiveDate::from_ymd(2021,04,16), time: Some(NaiveTime::from_hms(14,15,0)),duration: Some(Duration::minutes(5)),delay: Some(Duration::days(5)), frequency: Some(Duration::days(5))});
+
 	let mut args = std::env::args();
 
 	while args.len() >= 1 {
@@ -548,13 +537,33 @@ mod test {
 		assert_eq!(Ok("./rorg/appointments.org".to_string()),path_generator(FileType::Appt, None));
 	}
 	#[test]
-	fn timeStamp_test(){
-		let stamp =TimeStamp{
+	fn time_stamp_test(){
+		let stamp = TimeStamp{
 			date: NaiveDate::from_ymd(2003,09,16),
 			time: Some(NaiveTime::from_hms(9,39,0)),
 			duration: Some(Duration::minutes(171)),
 			delay: Some(Duration::days(2)),
 			frequency: Some(Duration::days(5))
 		};
+		assert_eq!("<2003-09-16 Tue 09:39-12:30 -2d +5d>".to_string(),format!("{:#}",stamp))
+	}
+	#[test]
+	fn event_test(){
+
+		let stamp = TimeStamp{
+			date: NaiveDate::from_ymd(2003,09,16),
+			time: Some(NaiveTime::from_hms(9,39,0)),
+			duration: Some(Duration::minutes(171)),
+			delay: Some(Duration::days(2)),
+			frequency: Some(Duration::days(5))
+		};
+		let mut event = Event::new(EventStyle::Task, "test".to_string());
+		assert_eq!("*** TODO test\n:PROPERTIES:\nSTYLE: Task\n:END:\n",format!("{:#}",event));
+		event.priority = Some(4);
+		assert_eq!("*** TODO [#4] test\n:PROPERTIES:\nSTYLE: Task\n:END:\n",format!("{:#}",event));
+		event.schedule = Some(stamp);
+		assert_eq!("*** TODO [#4] test\nSCHEDULE: <2003-09-16 Tue 09:39-12:30 -2d +5d>\n:PROPERTIES:\nSTYLE: Task\n:END:\n",format!("{:#}",event));
+		event.description = Some("a cool description for testing".to_string());
+		assert_eq!("*** TODO [#4] test\nSCHEDULE: <2003-09-16 Tue 09:39-12:30 -2d +5d>\n:PROPERTIES:\nSTYLE: Task\n:END:\n:DESCRIPTION:\na cool description for testing\n:END:\n",format!("{:#}",event));
 	}
 }
