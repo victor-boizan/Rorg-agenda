@@ -7,13 +7,55 @@ use chrono::naive::{NaiveDate,NaiveTime};
 use std::fs::File;
 use std::io::prelude::*;
 
-enum TimeRange{
+/* Definition */
+#[derive(Debug)]
+pub enum EventState {
+	TODO,
+	WIP,
+	FAILED,
+	REPORT,
+	DONE
+}
+#[derive(Debug)]
+pub enum EventStyle{
+	Appt,
+	Basic,
+	Habit,
+	Task,
+}
+#[derive(Debug)]
+#[derive(PartialEq)]
+pub enum FileType{
+
+	/*Task files*/
 	Year,
 	Month,
-	Week
+	Week,
+		/*other files*/
+	Basic,
+	Habit,
+	Appt
 }
-
 #[derive(Debug)]
+struct TimeStamp{
+	date: NaiveDate,
+	time: Option<NaiveTime>,
+	duration: Option<Duration>,
+	delay: Option<Duration>,
+	frequency: Option<Duration>
+}
+#[derive(Debug)]
+pub struct Event{
+	name: String,
+	state: Option<EventState>,
+	schedule: Option<TimeStamp>,
+	deadline: Option<TimeStamp>,
+	style: EventStyle,
+	priority: Option<u8>,
+	description: Option<String>,
+	logs: Option<String>,
+	notes: Option<String>
+}
 pub struct RorgFile{
 	pub file_type: FileType,
 	pub date:      Option<Date<Utc>>,
@@ -22,6 +64,77 @@ pub struct RorgFile{
 	pub events:    Vec<Event>,
 	pub notes:     Option<String>,
 	pub records:   Option<String>
+}
+
+/* Implementation */
+
+impl EventStyle{
+	fn defaultstate(&self) -> Option<EventState> {
+		match self {
+			EventStyle::Task => Some(EventState::TODO),
+			EventStyle::Habit => Some(EventState::TODO),
+			EventStyle::Appt => Some(EventState::TODO),
+			EventStyle::Basic => None,
+		}
+	}
+}
+impl Event {
+	pub fn new(style: EventStyle,name: String) -> Event {
+		Event{
+			name,
+			state: style.defaultstate(),
+			schedule: None,
+			deadline: None,
+			style,
+			priority: None,
+			description: None,
+			logs: None,
+			notes: None
+		}
+	}
+	/* when use with RorgFile::add_event, Could not evaluate DW_OP_GNU_entry_value
+	fn new_from_cli() -> Event {
+		println!("What is the name of the entry?");
+		let mut name = String::new();
+		match io::stdin().read_line(&mut name){
+			Ok(_) => {
+				name.pop();
+				println!("You will create an event named {}",name);
+			},
+			Err(e) => println!("error: {}",e)
+		}
+		let mut style = String::new();
+		println!("What style of entry \"{}\" is?\n1.Task\n2.Habit\n3.appointment\n4.Basic event\n",name);
+		match io::stdin().read_line(&mut style){
+		Ok(_) => {
+				style.pop();
+				style = style.to_lowercase();
+				match style.as_str(){
+				/*  nb | letter | name | alt*/
+					"1" | "t" | "task" | "todo"=> {
+						return Event::new(EventStyle::Task,name)
+					},
+					"2" | "h" | "habit" => {
+						return Event::new(EventStyle::Habit,name)
+					},
+					"3" | "a" | "appointment" | "appt" => {
+						return Event::new(EventStyle::Appt,name)
+					},
+					"4" | "b" | "basic" | "" => {
+						Event::new(EventStyle::Basic,name)
+					},
+					_ => {
+						println!("{} is no a valid input.",style);
+						std::process::exit(-1);
+					}
+				}
+			},
+			Err(e) => {
+				println!("error: {}",e);
+				std::process::exit(-1);
+			}
+		}
+	}*/
 }
 impl RorgFile{
 	pub fn from_file(path: &str) -> RorgFile {
@@ -121,66 +234,39 @@ impl RorgFile{
 	pub fn add_event(&mut self, event: Event) {
 		self.events.push(event);
 	}
-}
-#[derive(Debug)]
-pub enum EventState{
-	TODO,
-	WIP,
-	FAILED,
-	REPORT,
-	DONE
-}
-impl FromStr for EventState {
-	type Err = ();
-	fn from_str(input: &str) -> Result<EventState, ()> {
-		match input.to_lowercase().as_str() {
-			"todo"  =>Ok(EventState::TODO),
-			"wip"  => Ok(EventState::WIP),
-			"failed" => Ok(EventState::FAILED),
-			"report"  => Ok(EventState::REPORT),
-			"done" => Ok(EventState::DONE),
-			_ => Err(()),
+	fn path_generator(&self) -> Result<String,()> {
+		let file_type = &self.file_type;
+		let date = &self.date;
+		match file_type {
+			FileType::Year | FileType::Week | FileType::Month=> {
+				match date {
+					Some(_) => {},
+					None    => return Err(()),
+				}
+			}
+			_ =>{},
 		}
+		Ok(
+			match file_type {
+				FileType::Year  => {
+					if date.unwrap().year() == Utc::today().year() {
+						format!("./rorg/current/{}.org", date.unwrap().iso_week().year())
+					} else {
+						format!("./rorg/next_years/{}.org", date.unwrap().iso_week().year())
+					}
+				},
+				FileType::Month => {format!("./rorg/current/months/{}.org", date.unwrap().format("%m-%B"))/*%m-> month number, %B -> month name*/},
+				FileType::Week  => {format!("./rorg/current/weeks/w{}.org", date.unwrap().iso_week().week())},
+
+				FileType::Basic => String::from("./rorg/events.org"),
+				FileType::Habit => String::from("./rorg/habits.org"),
+				FileType::Appt  => String::from("./rorg/appointments.org")
+
+			}
+		)
 	}
 }
 
-#[derive(Debug)]
-pub enum EventStyle{
-	Appt,
-	Basic,
-	Habit,
-	Task,
-}
-impl EventStyle{
-	fn defaultstate(&self) -> Option<EventState> {
-		match self {
-			EventStyle::Task => Some(EventState::TODO),
-			EventStyle::Habit => Some(EventState::TODO),
-			EventStyle::Appt => Some(EventState::TODO),
-			EventStyle::Basic => None,
-		}
-	}
-}
-impl FromStr for EventStyle {
-	type Err = ();
-	fn from_str(input: &str) -> Result<EventStyle, ()> {
-		match input.to_lowercase().as_str() {
-			"task"  =>Ok(EventStyle::Task),
-			"habit"  => Ok(EventStyle::Habit),
-			"appt" => Ok(EventStyle::Appt),
-			"basic"  => Ok(EventStyle::Basic),
-			_ => Err(()),
-		}
-	}
-}
-#[derive(Debug)]
-struct TimeStamp{
-	date: NaiveDate,
-	time: Option<NaiveTime>,
-	duration: Option<Duration>,
-	delay: Option<Duration>,
-	frequency: Option<Duration>
-}
 impl fmt::Display for TimeStamp {
 	fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
 		let date = self.date.format("%Y-%m-%d %a");
@@ -209,76 +295,6 @@ impl fmt::Display for TimeStamp {
 		}
 		write!(formatter,"<{}{}{}{}{}>",date,time,duration,delay,frequency)
 	}
-}
-#[derive(Debug)]
-pub struct Event{
-name: String,
-	state: Option<EventState>,
-	schedule: Option<TimeStamp>,
-	deadline: Option<TimeStamp>,
-	style: EventStyle,
-	priority: Option<u8>,
-	description: Option<String>,
-	logs: Option<String>,
-	notes: Option<String>
-}
-impl Event {
-	pub fn new(style: EventStyle,name: String) -> Event {
-		Event{
-			name,
-			state: style.defaultstate(),
-			schedule: None,
-			deadline: None,
-			style,
-			priority: None,
-			description: None,
-			logs: None,
-			notes: None
-		}
-	}
-	/* when use with RorgFile::add_event, Could not evaluate DW_OP_GNU_entry_value
-	fn new_from_cli() -> Event {
-		println!("What is the name of the entry?");
-		let mut name = String::new();
-		match io::stdin().read_line(&mut name){
-			Ok(_) => {
-				name.pop();
-				println!("You will create an event named {}",name);
-			},
-			Err(e) => println!("error: {}",e)
-		}
-		let mut style = String::new();
-		println!("What style of entry \"{}\" is?\n1.Task\n2.Habit\n3.appointment\n4.Basic event\n",name);
-		match io::stdin().read_line(&mut style){
-		Ok(_) => {
-				style.pop();
-				style = style.to_lowercase();
-				match style.as_str(){
-				/*  nb | letter | name | alt*/
-					"1" | "t" | "task" | "todo"=> {
-						return Event::new(EventStyle::Task,name)
-					},
-					"2" | "h" | "habit" => {
-						return Event::new(EventStyle::Habit,name)
-					},
-					"3" | "a" | "appointment" | "appt" => {
-						return Event::new(EventStyle::Appt,name)
-					},
-					"4" | "b" | "basic" | "" => {
-						Event::new(EventStyle::Basic,name)
-					},
-					_ => {
-						println!("{} is no a valid input.",style);
-						std::process::exit(-1);
-					}
-				}
-			},
-			Err(e) => {
-				println!("error: {}",e);
-				std::process::exit(-1);
-			}
-		}
-	}*/
 }
 impl fmt::Display for Event {
 	fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -325,6 +341,32 @@ impl fmt::Display for Event {
 		}
 	}
 }
+
+impl FromStr for EventState {
+	type Err = ();
+	fn from_str(input: &str) -> Result<EventState, ()> {
+		match input.to_lowercase().as_str() {
+			"todo"  =>Ok(EventState::TODO),
+			"wip"  => Ok(EventState::WIP),
+			"failed" => Ok(EventState::FAILED),
+			"report"  => Ok(EventState::REPORT),
+			"done" => Ok(EventState::DONE),
+			_ => Err(()),
+		}
+	}
+}
+impl FromStr for EventStyle {
+	type Err = ();
+	fn from_str(input: &str) -> Result<EventStyle, ()> {
+		match input.to_lowercase().as_str() {
+			"task"  =>Ok(EventStyle::Task),
+			"habit"  => Ok(EventStyle::Habit),
+			"appt" => Ok(EventStyle::Appt),
+			"basic"  => Ok(EventStyle::Basic),
+			_ => Err(()),
+		}
+	}
+}
 impl FromStr for Event {
 	type Err = ();
 		fn from_str(input: &str) -> Result<Event, ()> {
@@ -350,50 +392,8 @@ impl FromStr for Event {
 			})
 		}
 	}
-#[derive(Debug)]
-#[derive(PartialEq)]
-pub enum FileType{
 
-	/*Task files*/
-	Year,
-	Month,
-	Week,
-		/*other files*/
-	Basic,
-	Habit,
-	Appt
-}
-
-
-fn path_generator(file_type: FileType, date: Option<Date<Utc>>) -> Result<String,()> {
-	match file_type {
-		FileType::Year | FileType::Week | FileType::Month=> {
-			match date {
-				Some(_) => {},
-				None    => return Err(()),
-			}
-		}
-		_ =>{},
-	}
-	Ok(
-		match file_type {
-			FileType::Year  => {
-				if date.unwrap().year() == Utc::today().year() {
-					format!("./rorg/current/{}.org", date.unwrap().iso_week().year())
-				} else {
-					format!("./rorg/next_years/{}.org", date.unwrap().iso_week().year())
-				}
-			},
-			FileType::Month => {format!("./rorg/current/months/{}.org", date.unwrap().format("%m-%B"))/*%m-> month number, %B -> month name*/},
-			FileType::Week  => {format!("./rorg/current/weeks/w{}.org", date.unwrap().iso_week().week())},
-
-			FileType::Basic => String::from("./rorg/events.org"),
-			FileType::Habit => String::from("./rorg/habits.org"),
-			FileType::Appt  => String::from("./rorg/appointments.org")
-
-		}
-	)
-}
+/* Other functions */
 fn date_from_path(path: &str) -> Option<Date<Utc>>{
 	let path_regex = Regex::new(r"\./rorg/(?P<lvl1>[^/\n]*)/?(?P<lvl2>[^/\n]*)?/?(?P<lvl3>[^/\n]+?)?(?P<nb>\d{2})?(?:[^\d\n]*)(?:\.org)$").unwrap();
 	let path_capture = path_regex.captures(path).unwrap();
