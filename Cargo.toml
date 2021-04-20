@@ -10,3 +10,5 @@ edition = "2018"
 
 chrono = "0.4"
 regex = "1"
+tui = { version = "0.14", default-features = false, features = ['crossterm'] }
+crossterm = "0.18"

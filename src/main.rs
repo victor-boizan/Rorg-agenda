@@ -4,7 +4,7 @@ use std::fs;
 
 /*import other files*/
 mod rorg_types;
-
+mod ui;
 /* Main */
 fn main() -> std::io::Result<()> {
 
@@ -51,6 +51,10 @@ fn main() -> std::io::Result<()> {
 
 				}
 			}
+			"--tui" => {
+				/*The tui is in wip. I never did that before*/
+				ui::init();
+			}
 			&_ => {println!("no clue of what to do with \"{}\"",argument)}
 		}
 	}
@@ -71,52 +75,3 @@ fn dir_init() -> std::io::Result<u8> {
 
 	Ok(0)
 }
-/*Tests*/
-//#[cfg(test)]
-/*mod test {
-	use super::*;
-
-	#[test]
-	fn path_test(){
-		let date = Utc.ymd(2021,04,15);
-
-		assert_eq!(Ok("./rorg/current/2021.org".to_string()),path_generator(FileType::Year, Some(date)));
-		assert_eq!(Ok("./rorg/current/months/04-April.org".to_string()),path_generator(FileType::Month, Some(date)));
-		assert_eq!(Ok("./rorg/current/weeks/w15.org".to_string()),path_generator(FileType::Week, Some(date)));
-		assert_eq!(Err(()),path_generator(FileType::Year, None));
-		assert_eq!(Ok("./rorg/events.org".to_string()),path_generator(FileType::Basic, Some(date)));
-		assert_eq!(Ok("./rorg/events.org".to_string()),path_generator(FileType::Basic, None));
-		assert_eq!(Ok("./rorg/habits.org".to_string()),path_generator(FileType::Habit, None));
-		assert_eq!(Ok("./rorg/appointments.org".to_string()),path_generator(FileType::Appt, None));
-	}
-	#[test]
-	fn time_stamp_test(){
-		let stamp = TimeStamp{
-			date: NaiveDate::from_ymd(2003,09,16),
-			time: Some(NaiveTime::from_hms(9,39,0)),
-			duration: Some(Duration::minutes(171)),
-			delay: Some(Duration::days(2)),
-			frequency: Some(Duration::days(5))
-		};
-		assert_eq!("<2003-09-16 Tue 09:39-12:30 -2d +5d>".to_string(),format!("{:#}",stamp))
-	}
-	#[test]
-	fn event_test(){
-
-		let stamp = TimeStamp{
-			date: NaiveDate::from_ymd(2003,09,16),
-			time: Some(NaiveTime::from_hms(9,39,0)),
-			duration: Some(Duration::minutes(171)),
-			delay: Some(Duration::days(2)),
-			frequency: Some(Duration::days(5))
-		};
-		let mut event = Event::new(EventStyle::Task, "test".to_string());
-		assert_eq!("*** TODO test\n:PROPERTIES:\nSTYLE: Task\n:END:\n",format!("{:#}",event));
-		event.priority = Some(4);
-		assert_eq!("*** TODO [#4] test\n:PROPERTIES:\nSTYLE: Task\n:END:\n",format!("{:#}",event));
-		event.schedule = Some(stamp);
-		assert_eq!("*** TODO [#4] test\nSCHEDULE: <2003-09-16 Tue 09:39-12:30 -2d +5d>\n:PROPERTIES:\nSTYLE: Task\n:END:\n",format!("{:#}",event));
-		event.description = Some("a cool description for testing".to_string());
-		assert_eq!("*** TODO [#4] test\nSCHEDULE: <2003-09-16 Tue 09:39-12:30 -2d +5d>\n:PROPERTIES:\nSTYLE: Task\n:END:\n:DESCRIPTION:\na cool description for testing\n:END:\n",format!("{:#}",event));
-	}
-}*/

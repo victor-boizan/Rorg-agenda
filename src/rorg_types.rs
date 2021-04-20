@@ -26,12 +26,11 @@ pub enum EventStyle{
 #[derive(Debug)]
 #[derive(PartialEq)]
 pub enum FileType{
-
 	/*Task files*/
 	Year,
 	Month,
 	Week,
-		/*other files*/
+	/*other files*/
 	Basic,
 	Habit,
 	Appt
@@ -234,7 +233,7 @@ impl RorgFile{
 	pub fn add_event(&mut self, event: Event) {
 		self.events.push(event);
 	}
-	fn path_generator(&self) -> Result<String,()> {
+	pub fn path_generator(&self) -> Result<String,()> {
 		let file_type = &self.file_type;
 		let date = &self.date;
 		match file_type {
