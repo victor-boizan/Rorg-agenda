@@ -45,7 +45,7 @@ struct TimeStamp{
 }
 #[derive(Debug)]
 pub struct Event{
-	name: String,
+	pub name: String,
 	state: Option<EventState>,
 	schedule: Option<TimeStamp>,
 	deadline: Option<TimeStamp>,
@@ -203,7 +203,7 @@ impl RorgFile{
 				let file_content = format!("#+TITLE: {}\n* Forcast\n{}* Todo\n{}\n\n* Notes\n{}\n* Records\n{}",
 					self.title, forcast, events, notes, records);
 				let mut file = File::create(path)?;
-				file.write_all(file_content.as_bytes());
+				file.write_all(file_content.as_bytes())?;
 				Ok(0)
 			},
 			FileType::Week => {
@@ -214,7 +214,7 @@ impl RorgFile{
 				let file_content = format!("#+TITLE: {}\n* Todo\n{}\n* Notes\n{}\n* Records\n{}",
 					self.title, events, self.notes.unwrap(), self.records.unwrap());
 				let mut file = File::create(path)?;
-				file.write_all(file_content.as_bytes());
+				file.write_all(file_content.as_bytes())?;
 				Ok(0)
 			},
 			FileType::Basic | FileType::Habit | FileType::Appt => {
@@ -225,7 +225,7 @@ impl RorgFile{
 				let file_content = format!("#+TITLE: {}\n{}",
 					self.title, events);
 				let mut file = File::create(path)?;
-				file.write_all(file_content.as_bytes());
+				file.write_all(file_content.as_bytes())?;
 				Ok(0)
 			}
 		}
