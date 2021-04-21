@@ -7,6 +7,10 @@ use chrono::naive::{NaiveDate,NaiveTime};
 use std::fs::File;
 use std::io::prelude::*;
 
+/*Setting some constant*/
+const TIMESTAMP_REGEX: &str = r"<(?P<date>\d{4}-\d{2}-\d{2}) .{3} ?(?:(?P<time>\d{2}:\d{2})-?(?P<duration>\d{2}:\d{2})?)?(?: \-(?P<delay>\d*)d)?(?: \+(?P<frequency>\d*)d)?>";
+const EVENT_REGEX: &str = r"(?m)^\*{5} (?P<state>[A-Z]{3,4})? ?\[?#?(?P<priority>\d*)?]? ?(?P<name>.*)\n(?:SCHEDULE: (?P<schedule><.*>)\n)?(?:DEADLINE: (?P<deadline><.*>)\n)?:PROPERTIES:\n:STYLE: (?P<Style>[A-z]+)\n(?::[A-Z]*: .*\n)*:END:\n:DESCRIPTION:\n(?P<description>^[^:]*\n*):END:\n:NOTES:\n(?P<notes>^[^:]*\n*):END:";
+
 /* Definition */
 #[derive(Debug,Clone)]
 pub enum EventState {
@@ -341,6 +345,47 @@ impl fmt::Display for Event {
 	}
 }
 
+
+impl FromStr for TimeStamp {
+	type Err = ();
+	fn from_str(input: &str) -> Result<TimeStamp, ()> {
+		let regex = Regex::new(TIMESTAMP_REGEX).unwrap();
+		let caps = regex.captures(input).unwrap();
+
+		let time: Option<NaiveTime>;
+		let duration: Option<Duration>;
+		let delay: Option<Duration>;
+		let frequency: Option<Duration>;
+
+		match caps.name("time") {
+			Some(_) => {time = Some(NaiveTime::from_str(format!("{}:00",&caps["time"]).as_str()).unwrap())},
+			_       => {time = None}
+		}
+		match caps.name("duration") {
+			Some(_) => {
+				let duration_timepoint = NaiveTime::from_str(format!("{}:00",&caps["duration"]).as_str()).unwrap();
+				duration = Some(duration_timepoint - time.unwrap())
+			}
+			None    => {duration = None}
+		}
+		match caps.name("delay") {
+			Some(_) => {delay = Some(Duration::days(caps["delay"].parse().unwrap()))}
+			None    => {delay = None}
+		}
+		match caps.name("frequency") {
+			Some(_) => {frequency = Some(Duration::days(caps["frequency"].parse().unwrap()))}
+			None    => {frequency = None}
+		}
+
+		Ok(TimeStamp{
+			date: NaiveDate::from_str(&caps["date"]).unwrap(),
+			time,
+			duration,
+			delay,
+			frequency
+		})
+	}
+}
 impl FromStr for EventState {
 	type Err = ();
 	fn from_str(input: &str) -> Result<EventState, ()> {
@@ -369,19 +414,27 @@ impl FromStr for EventStyle {
 impl FromStr for Event {
 	type Err = ();
 		fn from_str(input: &str) -> Result<Event, ()> {
-			let event_regex = Regex::new(r"(?m)^\*{3} (?P<state>[A-Z]{3,4})? ?\[?#?(?P<priority>\d*)?]? ?(?P<name>.*)\n:PROPERTIES:\n:STYLE: (?P<style>[A-z]+)\n(?::[A-Z]*: .*\n)*:END:\n:DESCRIPTION:\n(?P<description>^[^:]*\n*):END:\n:NOTES:\n(?P<notes>^[^:]*\n*):END:").unwrap();
+			let event_regex = Regex::new(EVENT_REGEX).unwrap();
 			let caps = event_regex.captures(input).unwrap();
 			let state: Option<EventState>;
-
+			let schedule: Option<TimeStamp>;
+			let deadline: Option<TimeStamp>;
 			match caps.name("state"){
 				Some(_) => {state = Some(EventState::from_str(&caps["state"]).unwrap())},
-				_ => {state = None}
+				None    => {state = None}
 			}
-
+			match caps.name("schedule"){
+				Some(_) => {schedule = Some(TimeStamp::from_str(&caps["schedule"]).unwrap())},
+				None    => {schedule = None}
+			}
+			match caps.name("deadline"){
+				Some(_) => {deadline = Some(TimeStamp::from_str(&caps["deadline"]).unwrap())},
+				None    => {deadline = None}
+			}
 			Ok(Event{
 				name: caps["name"].to_string(),
-				schedule: None,
-				deadline: None,
+				schedule,
+				deadline,
 				state,
 				style: EventStyle::from_str(&caps["style"]).unwrap(),
 				priority: Some(caps["priority"].parse::<u8>().unwrap_or(0)),

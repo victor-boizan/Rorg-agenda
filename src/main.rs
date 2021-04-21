@@ -47,13 +47,13 @@ fn main() -> std::io::Result<()> {
 
 					let mut file = rorg_types::RorgFile::from_file(path.as_str());
 					file.add_event(event);
-					file.to_file(path.as_str());
+					file.to_file(path.as_str())?;
 
 				}
 			}
 			"--tui" => {
 				/*The tui is in wip. I never did that before*/
-				ui::init();
+				ui::init()?;
 			}
 			&_ => {println!("no clue of what to do with \"{}\"",argument)}
 		}
