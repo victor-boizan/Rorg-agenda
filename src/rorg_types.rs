@@ -8,7 +8,7 @@ use std::fs::File;
 use std::io::prelude::*;
 
 /* Definition */
-#[derive(Debug)]
+#[derive(Debug,Clone)]
 pub enum EventState {
 	TODO,
 	WIP,
@@ -16,7 +16,7 @@ pub enum EventState {
 	REPORT,
 	DONE
 }
-#[derive(Debug)]
+#[derive(Debug,Clone)]
 pub enum EventStyle{
 	Appt,
 	Basic,
@@ -35,25 +35,25 @@ pub enum FileType{
 	Habit,
 	Appt
 }
-#[derive(Debug)]
-struct TimeStamp{
+#[derive(Debug,Clone)]
+pub struct TimeStamp{
 	date: NaiveDate,
 	time: Option<NaiveTime>,
 	duration: Option<Duration>,
 	delay: Option<Duration>,
 	frequency: Option<Duration>
 }
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Event{
 	pub name: String,
-	state: Option<EventState>,
-	schedule: Option<TimeStamp>,
-	deadline: Option<TimeStamp>,
-	style: EventStyle,
-	priority: Option<u8>,
-	description: Option<String>,
-	logs: Option<String>,
-	notes: Option<String>
+	pub state: Option<EventState>,
+	pub schedule: Option<TimeStamp>,
+	pub deadline: Option<TimeStamp>,
+	pub style: EventStyle,
+	pub priority: Option<u8>,
+	pub description: Option<String>,
+	pub logs: Option<String>,
+	pub notes: Option<String>
 }
 pub struct RorgFile{
 	pub file_type: FileType,
