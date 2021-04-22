@@ -8,9 +8,11 @@ use std::fs::File;
 use std::io::prelude::*;
 
 /*Setting some constant*/
-const TIMESTAMP_REGEX: &str = r"<(?P<date>\d{4}-\d{2}-\d{2}) .{3} ?(?:(?P<time>\d{2}:\d{2})-?(?P<duration>\d{2}:\d{2})?)?(?: \-(?P<delay>\d*)d)?(?: \+(?P<frequency>\d*)d)?>";
+const TIMESTAMP_REGEX: &str = r"<(?P<date>\d{4}-\d{2}-\d{2}) .{3}(?: (?P<time>\d{2}:\d{2})(?:-(?P<duration>\d{2}:\d{2}))?)?(?: -(?P<delay>\d*)d)?(?: \+(?P<frequency>\d*)d)?>";
 const EVENT_REGEX: &str = r"(?m)^\*{3} (?P<state>[A-Z]{3,4})? ?\[?#?(?P<priority>\d*)?]? ?(?P<name>.*)\n(?:SCHEDULE: (?P<schedule><.*>)\n)?(?:DEADLINE: (?P<deadline><.*>)\n)?:PROPERTIES:\n:STYLE: (?P<style>[A-z]+)\n(?::[A-Z]*: .*\n)*:END:\n:DESCRIPTION:\n(?P<description>^[^:]*\n*):END:\n:NOTES:\n(?P<notes>^[^:]*\n*):END:";
 const FILE_REGEX: &str = r"(?m)#\+TITLE: (?P<title>.*)\n(?:\* Forcast\n(?P<forcast>(?:^[^*].*\n)*))?(?:\* Notes\n(?P<notes>(?:^[^*].*\n)*))?(?:\* Records\n(?P<records>(?:^[^*].*\n)*))?";
+const PATH_REGEX: &str = r"\./rorg/(?P<lvl1>[^/\n]*)/?(?P<lvl2>[^/\n]*)?/?(?P<lvl3>[^/\n]+?)?(?P<nb>\d{2})?(?:[^\d\n]*\.org)$";
+
 /* Definition */
 #[derive(Debug,Clone)]
 pub enum EventState {
@@ -70,7 +72,6 @@ pub struct RorgFile{
 }
 
 /* Implementation */
-
 impl EventStyle{
 	fn defaultstate(&self) -> Option<EventState> {
 		match self {
@@ -173,7 +174,7 @@ impl RorgFile{
 		}
 
 		RorgFile{
-			file_type:FileType::Year,
+			file_type: FileType::from_str(path).unwrap(),
 			date: date_from_path(path),
 			title: file_capture["title"].to_string(),
 			forcast,
@@ -346,7 +347,39 @@ impl fmt::Display for Event {
 	}
 }
 
-
+impl FromStr for FileType {
+	type Err = ();
+	fn from_str(input: &str) -> Result<FileType, ()> {
+		match input.to_lowercase().as_str() {
+			"year"  => Ok(FileType::Year),
+			"month" => Ok(FileType::Month),
+			"week"  => Ok(FileType::Week),
+			"basic" => Ok(FileType::Basic),
+			"habit" => Ok(FileType::Habit),
+			"appt"  => Ok(FileType::Appt),
+			_ => {
+				let path_regex = Regex::new(PATH_REGEX).unwrap();
+				let path_capture = path_regex.captures(input).unwrap();
+				if path_capture["lvl1"].to_string() == "current".to_string(){
+					match path_capture.name("lvl3"){
+						Some(_) => {
+							if &path_capture["lvl3"] == "w" { Ok(FileType::Week) }
+							else { Ok(FileType::Month) }
+						}
+						None  => Ok(FileType::Year),
+					}
+				} else {
+					match &path_capture["lvl1"]{
+						"appointments" => Ok(FileType::Appt),
+						"habits"       => Ok(FileType::Habit),
+						"special_time" => Ok(FileType::Basic),
+						_ => Err(())
+					}
+				}
+			}
+		}
+	}
+}
 impl FromStr for TimeStamp {
 	type Err = ();
 	fn from_str(input: &str) -> Result<TimeStamp, ()> {
@@ -448,7 +481,7 @@ impl FromStr for Event {
 
 /* Other functions */
 fn date_from_path(path: &str) -> Option<Date<Utc>>{
-	let path_regex = Regex::new(r"\./rorg/(?P<lvl1>[^/\n]*)/?(?P<lvl2>[^/\n]*)?/?(?P<lvl3>[^/\n]+?)?(?P<nb>\d{2})?(?:[^\d\n]*)(?:\.org)$").unwrap();
+	let path_regex = Regex::new(PATH_REGEX).unwrap();
 	let path_capture = path_regex.captures(path).unwrap();
 
 	if path_capture["lvl1"].to_string() == "current".to_string(){
