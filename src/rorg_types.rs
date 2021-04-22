@@ -9,8 +9,8 @@ use std::io::prelude::*;
 
 /*Setting some constant*/
 const TIMESTAMP_REGEX: &str = r"<(?P<date>\d{4}-\d{2}-\d{2}) .{3} ?(?:(?P<time>\d{2}:\d{2})-?(?P<duration>\d{2}:\d{2})?)?(?: \-(?P<delay>\d*)d)?(?: \+(?P<frequency>\d*)d)?>";
-const EVENT_REGEX: &str = r"(?m)^\*{5} (?P<state>[A-Z]{3,4})? ?\[?#?(?P<priority>\d*)?]? ?(?P<name>.*)\n(?:SCHEDULE: (?P<schedule><.*>)\n)?(?:DEADLINE: (?P<deadline><.*>)\n)?:PROPERTIES:\n:STYLE: (?P<Style>[A-z]+)\n(?::[A-Z]*: .*\n)*:END:\n:DESCRIPTION:\n(?P<description>^[^:]*\n*):END:\n:NOTES:\n(?P<notes>^[^:]*\n*):END:";
-
+const EVENT_REGEX: &str = r"(?m)^\*{3} (?P<state>[A-Z]{3,4})? ?\[?#?(?P<priority>\d*)?]? ?(?P<name>.*)\n(?:SCHEDULE: (?P<schedule><.*>)\n)?(?:DEADLINE: (?P<deadline><.*>)\n)?:PROPERTIES:\n:STYLE: (?P<style>[A-z]+)\n(?::[A-Z]*: .*\n)*:END:\n:DESCRIPTION:\n(?P<description>^[^:]*\n*):END:\n:NOTES:\n(?P<notes>^[^:]*\n*):END:";
+const FILE_REGEX: &str = r"(?m)#\+TITLE: (?P<title>.*)\n(?:\* Forcast\n(?P<forcast>(?:^[^*].*\n)*))?(?:\* Notes\n(?P<notes>(?:^[^*].*\n)*))?(?:\* Records\n(?P<records>(?:^[^*].*\n)*))?";
 /* Definition */
 #[derive(Debug,Clone)]
 pub enum EventState {
@@ -146,37 +146,38 @@ impl RorgFile{
 		let mut file_content = String::new();
 		file.read_to_string(&mut file_content).expect("READ error in function from_file");
 		drop(file);
-		let file_regex = Regex::new(r"(?m)#\+TITLE: (?P<Title>.*)\n*(?:\* Forcast\n)?(?P<Forcast>^[^\*]*\n*)?\*(?:.*\n)+?\* Notes\n(?P<Notes>^[^\*]*\n*)\n\* Records\n(?P<Records>^[^\*]*\n*)").unwrap();
+
+		let file_regex = Regex::new(FILE_REGEX).unwrap();
 		let file_capture = file_regex.captures(file_content.as_str()).unwrap();
-		let event_regex = Regex::new(r"(?m)^\*{3} (?P<state>[A-Z]{3,4})? ?\[?#?(?P<priority>\d*)?]? ?(?P<name>.*)\n:PROPERTIES:\n:STYLE: (?P<style>[A-z]+)\n(?::[A-Z]*: .*\n)*:END:\n:DESCRIPTION:\n(?P<description>^[^:]*\n*):END:\n:NOTES:\n(?P<notes>^[^:]*\n*):END:").unwrap();
+
+		let event_regex = Regex::new(EVENT_REGEX).unwrap();
 		let mut event_vector = Vec::new();
 		for event in event_regex.captures_iter(&file_content) {
 			event_vector.push(Event::from_str(event.get(0).unwrap().as_str()).unwrap())
 		}
+
 		let forcast: Option<String>;
 		let notes: Option<String>;
 		let records: Option<String>;
-		if file_capture["Forcast"].is_empty(){
-			forcast = None;
-		} else {
-			forcast = Some(file_capture["Forcast"].to_string());
+		match file_capture.name("forcast") {
+			Some(_) => forcast = Some(file_capture["forcast"].to_string()),
+			None    => forcast = None
 		}
-		if file_capture["Records"].is_empty(){
-			records = None;
-		} else {
-			records = Some(file_capture["Records"].to_string());
+		match file_capture.name("notes") {
+			Some(_) => notes = Some(file_capture["notes"].to_string()),
+			None    => notes = None
 		}
-		if file_capture["Notes"].is_empty(){
-			notes = None;
-		} else {
-			notes = Some(file_capture["Notes"].to_string());
+		match file_capture.name("records") {
+			Some(_) => records = Some(file_capture["records"].to_string()),
+			None    => records = None
 		}
+
 		RorgFile{
-		file_type:FileType::Year,
+			file_type:FileType::Year,
 			date: date_from_path(path),
-			title: file_capture["Title"].to_string(),
+			title: file_capture["title"].to_string(),
 			forcast,
-			events:event_vector,
+			events: event_vector,
 			notes,
 			records,
 		}
@@ -204,7 +205,7 @@ impl RorgFile{
 					Some(value) => records = value,
 					None        => records = "".to_string()
 				}
-				let file_content = format!("#+TITLE: {}\n* Forcast\n{}* Todo\n{}\n\n* Notes\n{}\n* Records\n{}",
+				let file_content = format!("#+TITLE: {}\n* Forcast\n{}* Notes\n{}\n* Records\n{}\n* Todo\n{}\n",
 					self.title, forcast, events, notes, records);
 				let mut file = File::create(path)?;
 				file.write_all(file_content.as_bytes())?;
@@ -215,7 +216,7 @@ impl RorgFile{
 				for entry in self.events{
 					events = format!("{}\n{:#}",events,entry)
 				}
-				let file_content = format!("#+TITLE: {}\n* Todo\n{}\n* Notes\n{}\n* Records\n{}",
+				let file_content = format!("#+TITLE: {}\n* Notes\n{}\n* Records\n{}\n* Todo\n{}",
 					self.title, events, self.notes.unwrap(), self.records.unwrap());
 				let mut file = File::create(path)?;
 				file.write_all(file_content.as_bytes())?;
