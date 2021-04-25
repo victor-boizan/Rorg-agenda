@@ -7,11 +7,14 @@ passing by the way it formats these files.
 - I not a native English speaker so there may be spelling and grammar
 issues in the software. Don't hesitate to tell me if you see one..
 
-
-## What is this?
-
+## What this will be?
 Rorg-Agenda is a standalone time management system that uses .org files to store data.
-Now, Rorg-Agenda can generate the files and read them.
+It will be able to help you if you don't want to open emacs each time you want
+to add  or see something in your To-do-list, if you want to automate the addition
+of some event (using Caldav for example) or if you want to have notification about
+what you have to do.
+
+At this point, Rorg-agenda is unable to do anything except add task to a to-do list
 ## Usage
 
 ```
@@ -23,4 +26,4 @@ $ rorg [action-arg] [specifier]
 | --init          |                               |initialize the directory|
 | --read          |(file to read)                 |read a file       |
 | --add           |(Info to generate the entry)   |add an entry      |
-| --remove        |(Info to identify the entry)   |remove an entry   |
+| --tui           |                               |use the terminal interface|
