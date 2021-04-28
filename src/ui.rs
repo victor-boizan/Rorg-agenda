@@ -34,6 +34,14 @@ pub fn init() -> Result<(), io::Error>{
 	let backend = CrosstermBackend::new(stdout);
 	let mut terminal = Terminal::new(backend)?;
 
+	let mut eventlist_state = ListState::default();
+	eventlist_state.select(Some(0));
+
+
+	let quit_event = KeyEvent::new(KeyCode::Char('q'),KeyModifiers::NONE);
+	let up_event = KeyEvent::new(KeyCode::Up,KeyModifiers::NONE);
+	let down_event = KeyEvent::new(KeyCode::Down,KeyModifiers::NONE);
+
 	loop {
 		terminal.draw(|f| {
 			let chunks = Layout::default()
@@ -48,15 +56,19 @@ pub fn init() -> Result<(), io::Error>{
 				.split(f.size());
 			let file = rorg_agenda::rorg_types::RorgFile::from_file("./rorg/current/2021.org");
 			let events = file.events.clone();
-			let selected_event = file.events[0].clone();
-			f.render_widget(tasklist(events), chunks[0]);
+
+			let selected_event = file.events[eventlist_state.selected().unwrap()].clone();
+			f.render_stateful_widget(tasklist(events,&eventlist_state), chunks[0],&mut eventlist_state);
 
 			f.render_widget(eventview(selected_event), chunks[1]);
 		});
-		let quit_event = KeyEvent::new(KeyCode::Char('q'),KeyModifiers::NONE);
 		if poll(Duration::from_millis(500)).unwrap() {
 			match read().unwrap() {
-				Event::Key(quit_event) => break,
+				Event::Key(event) => {
+				if event == quit_event{break}
+				else if event == up_event{ eventlist_state.select(Some(eventlist_state.selected().unwrap() - 1))}
+				else if event == down_event{ eventlist_state.select(Some(eventlist_state.selected().unwrap() + 1))}
+				},
 				_ => {}
 			}
 		}
@@ -65,14 +77,26 @@ pub fn init() -> Result<(), io::Error>{
 	Ok(())
 }
 
-fn tasklist(event_vector: Vec<rorg_agenda::rorg_types::Event>) -> List<'static>{
-	let mut items = Vec::new();
+fn tasklist(event_vector: Vec<rorg_agenda::rorg_types::Event>,eventlist_state: &ListState) -> List<'static>{
+	let items: Vec<_> = event_vector
+		.iter()
+		.map(|event| {
+			ListItem::new(Spans::from(vec![Span::styled(
+				event.name.clone(),
+				Style::default(),
+			)]))
+		})
+		.collect();
 
-	for event in event_vector{
-		items.push(ListItem::new(event.name))
-	}
-	let mut eventlist_state = ListState::default();
-	eventlist_state.select(Some(0));
+
+	let selected_event = event_vector
+	.get(
+		eventlist_state
+			.selected()
+			.expect("Nothing is selected"),
+	)
+	.clone();
+
 	List::new(items)
 		.block(Block::default().title("Task list").borders(Borders::ALL))
 		.style(Style::default())
