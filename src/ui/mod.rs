@@ -20,6 +20,8 @@ use crossterm::{
 use std::time::Duration;
 
 extern crate rorg_agenda;
+mod event_list;
+
 use tui::Terminal;
 use tui::backend::CrosstermBackend;
 use tui::style::{Style,Color,Modifier};
@@ -58,9 +60,12 @@ pub fn init() -> Result<(), io::Error>{
 			let events = file.events.clone();
 
 			let selected_event = file.events[eventlist_state.selected().unwrap()].clone();
-			f.render_stateful_widget(tasklist(events,&eventlist_state), chunks[0],&mut eventlist_state);
 
-			f.render_widget(eventview(selected_event), chunks[1]);
+			let (list,paragraph) = event_list::view(events,&eventlist_state);
+
+			f.render_stateful_widget(list, chunks[0],&mut eventlist_state);
+
+			f.render_widget(paragraph, chunks[1]);
 		});
 		if poll(Duration::from_millis(500)).unwrap() {
 			match read().unwrap() {
@@ -75,48 +80,4 @@ pub fn init() -> Result<(), io::Error>{
 	}
 	execute!(io::stdout(), LeaveAlternateScreen);
 	Ok(())
-}
-
-fn tasklist(event_vector: Vec<rorg_agenda::rorg_types::Event>,eventlist_state: &ListState) -> List<'static>{
-	let items: Vec<_> = event_vector
-		.iter()
-		.map(|event| {
-			ListItem::new(Spans::from(vec![Span::styled(
-				event.name.clone(),
-				Style::default(),
-			)]))
-		})
-		.collect();
-
-
-	let selected_event = event_vector
-	.get(
-		eventlist_state
-			.selected()
-			.expect("Nothing is selected"),
-	)
-	.clone();
-
-	List::new(items)
-		.block(Block::default().title("Task list").borders(Borders::ALL))
-		.style(Style::default())
-		.highlight_style(Style::default())
-		.highlight_symbol(">>")
-}
-
-fn eventview(event: rorg_agenda::rorg_types::Event) -> Paragraph<'static>{
-
-	let text = vec![
-		Spans::from(Span::raw(format!("{:?}\n: {}",event.state.unwrap(),event.name))),
-		Spans::from(Span::raw("")),
-		Spans::from(Span::styled("Descritpion:", Style::default().add_modifier(Modifier::BOLD))),
-		Spans::from(Span::raw(event.description.unwrap())),
-		Spans::from(Span::raw("")),
-		Spans::from(Span::styled("Notes:", Style::default().add_modifier(Modifier::BOLD))),
-		Spans::from(Span::raw(event.notes.unwrap())),
-	];
-	Paragraph::new(text)
-		.block(Block::default().title("Task view").borders(Borders::ALL))
-		.alignment(Alignment::Left)
-		.wrap(Wrap { trim: true })
 }
