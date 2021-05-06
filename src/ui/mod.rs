@@ -24,10 +24,8 @@ mod event_list;
 
 use tui::Terminal;
 use tui::backend::CrosstermBackend;
-use tui::style::{Style,Color,Modifier};
-use tui::widgets::{Block, Borders,List,ListItem,Paragraph,Wrap,ListState};
-use tui::layout::{Layout, Constraint, Direction,Alignment};
-use tui::text::{Spans,Span};
+use tui::widgets::{ListState};
+use tui::layout::{Layout, Constraint, Direction};
 
 pub fn init() -> Result<(), io::Error>{
 	let mut stdout = io::stdout();
@@ -51,7 +49,7 @@ pub fn init() -> Result<(), io::Error>{
 				.margin(1)
 				.constraints(
 					[
-						Constraint::Length(20),
+						Constraint::Length(10),
 						Constraint::Percentage(100)
 					].as_ref()
 				)
@@ -66,7 +64,7 @@ pub fn init() -> Result<(), io::Error>{
 			f.render_stateful_widget(list, chunks[0],&mut eventlist_state);
 
 			f.render_widget(paragraph, chunks[1]);
-		});
+		}).expect("fail to draw");
 		if poll(Duration::from_millis(500)).unwrap() {
 			match read().unwrap() {
 				Event::Key(event) => {

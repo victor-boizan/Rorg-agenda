@@ -5,7 +5,6 @@ use chrono::{Date, Datelike, TimeZone, Utc, Duration};
 use chrono::naive::{NaiveDate,NaiveTime};
 use std::fs::File;
 use std::io::prelude::*;
-
 /*Setting some constant*/
 const TIMESTAMP_REGEX: &str = r"<(?P<date>\d{4}-\d{2}-\d{2}) .{3}(?: (?P<time>\d{2}:\d{2})(?:-(?P<duration>\d{2}:\d{2}))?)?(?: -(?P<delay>\d*)d)?(?: \+(?P<frequency>\d*)d)?>";
 const EVENT_REGEX: &str = r"(?m)^\*{3} (?P<state>[A-Z]{3,4})? ?\[?#?(?P<priority>\d*)?]? ?(?P<name>.*)\n(?:SCHEDULE: (?P<schedule><.*>)\n)?(?:DEADLINE: (?P<deadline><.*>)\n)?:PROPERTIES:\n:STYLE: (?P<style>[A-z]+)\n(?::[A-Z]*: .*\n)*:END:\n:DESCRIPTION:\n(?P<description>^[^:]*\n*):END:\n:NOTES:\n(?P<notes>^[^:]*\n*):END:";

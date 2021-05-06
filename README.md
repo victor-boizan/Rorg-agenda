@@ -1,11 +1,16 @@
 # Rorg-Agenda
 
 **WARNINGS**
+
+- I'm not activelly working on it. If you're looking for a good cli/tui organizer
+  take a look at [Taskwarior](https://taskwarrior.org/) and [taskwarior-tui](https://github.com/kdheepak/taskwarrior-tui) for a Tui.
+  
+
 - Rorg-agenda is in an early stage in development, everything can change
 in the future from the name of the variable to the way you interact with it,
 passing by the way it formats these files.
 - I not a native English speaker so there may be spelling and grammar
-issues in the software. Don't hesitate to tell me if you see one..
+issues in this repo. Don't hesitate to tell me if you see one..
 
 ## What this will be?
 Rorg-Agenda is a standalone time management system that uses .org files to store data.

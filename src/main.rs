@@ -54,7 +54,7 @@ fn main() -> std::io::Result<()> {
 			"--tui" => {
 				/*The tui is in wip. I never did that before*/
 				ui::init()?;
-			}
+			},
 			&_ => {println!("no clue of what to do with \"{}\"",argument)}
 		}
 	}

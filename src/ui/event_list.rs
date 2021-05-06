@@ -5,15 +5,6 @@ use tui::widgets::{Block, Borders,List,ListItem,Paragraph,Wrap,ListState};
 use tui::layout::Alignment;
 use tui::text::{Spans,Span};
 
-
-
-
-
-
-
-
-
-
 pub fn view(event_vector: Vec<rorg_agenda::rorg_types::Event>,eventlist_state: &ListState) -> (List<'static>,Paragraph<'static>) {
 	let items: Vec<_> = event_vector
 		.iter()
@@ -24,7 +15,6 @@ pub fn view(event_vector: Vec<rorg_agenda::rorg_types::Event>,eventlist_state: &
 			)]))
 		})
 		.collect();
-
 
 	let selected_event = event_vector
 	.get(
@@ -39,8 +29,6 @@ pub fn view(event_vector: Vec<rorg_agenda::rorg_types::Event>,eventlist_state: &
 		.style(Style::default())
 		.highlight_style(Style::default())
 		.highlight_symbol(">>");
-
-
 
 	let text = vec![
 		Spans::from(Span::raw(format!("{:?}\n: {}",selected_event.state.unwrap(),selected_event.name))),
